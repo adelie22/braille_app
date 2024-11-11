@@ -1,0 +1,173 @@
+<!-- templates/learning/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Learning Braille</title>
+    <style>
+        /* Add your styles here */
+        .flash.success {
+            color: green;
+        }
+        .flash.error {
+            color: red;
+        }
+        .flash.info {
+            color: blue;
+        }
+        .flashes {
+            list-style-type: none;
+            padding: 0;
+        }
+        .flashes li {
+            margin-bottom: 10px;
+        }
+        .word-display, .input-display {
+            margin: 20px 0;
+            font-size: 1.5em;
+        }
+        .braille-characters {
+            font-family: 'SimBraille', sans-serif; /* Use a braille-friendly font if available */
+        }
+    </style>
+</head>
+<body>
+    <h1>Learning Braille</h1>
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flashes">
+          {% for category, message in messages %}
+            <li class="flash {{ category }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    
+    <!-- Display the Target Word -->
+    {% if target_word %}
+        <div class="word-display">
+            <strong>Target Word:</strong> {{ target_word }}
+        </div>
+    {% endif %}
+    
+    <!-- Display User's Input (Only When Available) -->
+    {% if user_input %}
+        <div class="input-display">
+            <strong>Your Input:</strong>
+            <span class="braille-characters">{{ user_input }}</span>
+            <br>
+            <em>(Dot Numbers: {{ user_input_dots }})</em>
+        </div>
+    {% endif %}
+    
+    <!-- Instruction -->
+    <p>Translate the braille input to match the target word.</p>
+    
+    <!-- Word Audio -->
+    {% if audio_url %}
+        <audio id="word-audio" src="{{ audio_url }}" autoplay></audio>
+        <button id="manual-play-word" style="display: none;">Play Word Audio</button>
+    {% endif %}
+    
+    <!-- Pattern Audio (Displayed Only When Available) -->
+    {% if pattern_audio_url %}
+        <audio id="pattern-audio" src="{{ pattern_audio_url }}" autoplay></audio>
+        <button id="manual-play-pattern" style="display: none;">Play Pattern Audio</button>
+    {% endif %}
+    
+    <!-- JavaScript for Autoplay Handling -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle Word Audio
+            var wordAudio = document.getElementById('word-audio');
+            var manualPlayWord = document.getElementById('manual-play-word');
+            if (wordAudio) {
+                var playPromiseWord = wordAudio.play();
+                if (playPromiseWord !== undefined) {
+                    playPromiseWord.then(_ => {
+                        // Automatic playback started!
+                        console.log('Word audio playback started.');
+                    })
+                    .catch(error => {
+                        // Automatic playback failed.
+                        console.error('Autoplay was prevented for word audio:', error);
+                        // Show the manual play button
+                        manualPlayWord.style.display = 'block';
+                        // Notify the user
+                        alert('Click the "Play Word Audio" button to hear the word.');
+                    });
+                }
+
+                manualPlayWord.addEventListener('click', function() {
+                    wordAudio.play();
+                    manualPlayWord.style.display = 'none'; // Hide after playing
+                });
+            }
+
+            // Handle Pattern Audio
+            var patternAudio = document.getElementById('pattern-audio');
+            var manualPlayPattern = document.getElementById('manual-play-pattern');
+            if (patternAudio) {
+                var playPromisePattern = patternAudio.play();
+                if (playPromisePattern !== undefined) {
+                    playPromisePattern.then(_ => {
+                        // Automatic playback started!
+                        console.log('Pattern audio playback started.');
+                    })
+                    .catch(error => {
+                        // Automatic playback failed.
+                        console.error('Autoplay was prevented for pattern audio:', error);
+                        // Show the manual play button
+                        manualPlayPattern.style.display = 'block';
+                        // Notify the user
+                        alert('Click the "Play Pattern Audio" button to hear the correct pattern.');
+                    });
+                }
+
+                manualPlayPattern.addEventListener('click', function() {
+                    patternAudio.play();
+                    manualPlayPattern.style.display = 'none'; // Hide after playing
+                });
+            }
+        });
+    </script>
+    
+    <!-- Form for Braille Input -->
+    <form method="POST">
+        <!-- Your form elements for braille input -->
+        <!-- For example, you might have buttons or inputs to simulate braille dots -->
+        <!-- This is a placeholder. Replace with actual braille input elements as needed. -->
+        <div>
+            <button type="button" onclick="simulateBrailleInput()">Simulate Braille Input</button>
+        </div>
+        <button type="submit">Submit</button>
+    </form>
+    
+    <!-- Optional: Display Braille Input Simulation (For Testing) -->
+    <script>
+        // Placeholder function to simulate braille input.
+        // Replace this with actual input handling as per your application.
+        function simulateBrailleInput() {
+            // Example: Simulate braille bytes for 'lion' -> [7, 10, 21, 13]
+            fetch('/simulate_input', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ braille_bytes: [7, 10, 21, 13] }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Simulated Input:', data);
+                alert('Braille input simulated for testing.');
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
+</body>
+</html>
