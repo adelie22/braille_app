@@ -1,0 +1,143 @@
+<!-- blueprints/diary/templates/diary/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Diary Entries</title>
+    <style>
+        /* Basic styles for layout */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .flash.success {
+            color: green;
+        }
+        .flash.error {
+            color: red;
+        }
+        .flashes {
+            list-style-type: none;
+            padding: 0;
+        }
+        .flashes li {
+            margin-bottom: 10px;
+        }
+        .entry {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+        }
+        .entry-date {
+            font-size: 0.9em;
+            color: #555;
+        }
+        .buttons {
+            margin-top: 10px;
+        }
+        .buttons form {
+            display: inline;
+        }
+        .play-button, .delete-button {
+            padding: 5px 10px;
+            font-size: 0.9em;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+            margin-right: 5px;
+        }
+        .play-button {
+            background-color: #28a745;
+            color: white;
+        }
+        .play-button:hover {
+            background-color: #218838;
+        }
+        .delete-button {
+            background-color: #dc3545;
+            color: white;
+        }
+        .delete-button:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Diary Entries</h1>
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flashes">
+          {% for category, message in messages %}
+            <li class="flash {{ category }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    
+    <!-- Add Entry Button -->
+    <p>
+        <a href="{{ url_for('diary.add_entry') }}">
+            <button type="button">Add New Entry</button>
+        </a>
+    </p>
+    
+    <!-- List of Diary Entries -->
+    {% if entries %}
+        {% for entry in entries %}
+            <div class="entry">
+                <div class="entry-date">
+                    {{ entry.entry_date.strftime('%Y-%m-%d %H:%M:%S') }}
+                </div>
+                <div class="entry-content">
+                    {{ entry.content }}
+                </div>
+                <div class="buttons">
+                    <!-- Play Button -->
+                    <button class="play-button" onclick="playAudio('{{ url_for('diary.speak_entry', entry_id=entry.id) }}')">
+                        Play
+                    </button>
+                    
+                    <!-- Delete Button -->
+                    <form action="{{ url_for('diary.delete_entry', entry_id=entry.id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this entry?');">
+                        <button type="submit" class="delete-button">Delete</button>
+                    </form>
+                </div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p>No diary entries found.</p>
+    {% endif %}
+    
+    <!-- JavaScript for Audio Playback -->
+    <script>
+        let currentAudio = null;
+
+        function playAudio(audioUrl) {
+            // If another audio is playing, pause it
+            if (currentAudio && !currentAudio.paused) {
+                currentAudio.pause();
+            }
+
+            // Create a new audio instance
+            currentAudio = new Audio(audioUrl);
+            currentAudio.play().catch(function(error) {
+                alert('Error playing audio: ' + error);
+            });
+        }
+
+        // Optional: Handle keyboard accessibility
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                var activeElement = document.activeElement;
+                if (activeElement && (activeElement.classList.contains('play-button') || activeElement.classList.contains('delete-button'))) {
+                    activeElement.click();
+                }
+            }
+        });
+    </script>
+</body>
+</html>

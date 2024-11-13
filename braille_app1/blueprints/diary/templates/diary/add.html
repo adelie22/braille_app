@@ -1,0 +1,117 @@
+<!-- blueprints/diary/templates/diary/add.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Diary Entry</title>
+    <style>
+        /* Basic styles for layout */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .flash.success {
+            color: green;
+        }
+        .flash.error {
+            color: red;
+        }
+        .flashes {
+            list-style-type: none;
+            padding: 0;
+        }
+        .flashes li {
+            margin-bottom: 10px;
+        }
+        .instructions {
+            margin-bottom: 20px;
+        }
+        .submit-button {
+            margin-top: 10px;
+        }
+        .live-input {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 5px;
+            min-height: 100px;
+            font-size: 1.2em;
+            background-color: #f9f9f9;
+        }
+    </style>
+    <!-- Include Socket.IO client library -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"
+        integrity="sha384-XEod+j5cSg5JpmmOVjF+I56MIjP8rMwF+N6zL0I5PSTjv3wTIX3VZ7U9mGeLwPCg"
+        crossorigin="anonymous"></script>
+</head>
+<body>
+    <h1>Add New Diary Entry</h1>
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul class="flashes">
+          {% for category, message in messages %}
+            <li class="flash {{ category }}">{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+    
+    <!-- Instructions for Braille Input -->
+    <div class="instructions">
+        <p>
+            Please use your Braille keyboard to input your diary entry. As you enter Braille patterns, they will appear below. After completing your entry, press the submit button.
+        </p>
+    </div>
+    
+    <!-- Live Input Display -->
+    <div id="live-input" class="live-input" aria-live="polite">
+        <!-- Braille input will be displayed here -->
+    </div>
+    
+    <!-- Form for Adding Entry -->
+    <form method="POST">
+        <!-- Since input is from Braille keyboard, no visible input fields are necessary -->
+        <button type="submit" class="submit-button">Submit</button>
+    </form>
+    
+    <!-- Back to Entries -->
+    <p>
+        <a href="{{ url_for('diary.list_entries') }}">
+            <button type="button">Back to Entries</button>
+        </a>
+    </p>
+    
+    <!-- JavaScript for SocketIO and Live Input Handling -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Connect to SocketIO server
+            var socket = io();
+
+            // Reference to the live input display
+            var liveInput = document.getElementById('live-input');
+
+            // Store the current entry being added
+            var currentEntry = '';
+
+            // Listen for braille_input events
+            socket.on('braille_input', function(data) {
+                var brailleByte = data.braille_byte;
+                var brailleChar = String.fromCharCode(0x2800 + brailleByte);
+                currentEntry += brailleChar;
+                liveInput.textContent = currentEntry;
+            });
+
+            // Listen for input_finished events
+            socket.on('input_finished', function(data) {
+                var count = data.count;
+                console.log(`Input session finished with ${count} braille patterns.`);
+                // Optionally, you can disable further input or provide feedback
+            });
+
+            // Optionally, handle form submission via AJAX if needed
+        });
+    </script>
+</body>
+</html>
