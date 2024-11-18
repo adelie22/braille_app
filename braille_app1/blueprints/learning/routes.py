@@ -14,7 +14,7 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 
 # Path to your Braille translation table
-BRAILLE_TABLE = ["en-us-g1.ctb"]  # Ensure the table is in the correct directory or provide the absolute path
+BRAILLE_TABLE = "/home/guru/liblouis-3.21.0/tables/en-us-g1.ctb"  # Ensure the table is in the correct directory or provide the absolute path
 
 # Initialize Google TTS client
 tts_client = texttospeech.TextToSpeechClient()
@@ -56,7 +56,7 @@ def index():
                 logging.debug(f"Braille Characters: {braille_chars}")
 
                 # Use louis.backTranslateString to translate Braille Unicode string to text
-                entered_word = louis.backTranslateString(BRAILLE_TABLE, braille_chars).strip().lower()
+                entered_word = louis.backTranslateString([BRAILLE_TABLE], braille_chars).strip().lower()
                 logging.debug(f"Translated Word: {entered_word}")
 
                 # For display purposes, extract dot numbers for each Braille byte
@@ -130,7 +130,7 @@ def index():
                     for i, letter in enumerate(target_word):
                         # Get the Braille characters for the letter with adjusted modes
                         # translation_mode = louis.noContractions | louis.dotsIO
-                        braille_chars_for_letter = louis.translateString(BRAILLE_TABLE, letter)
+                        braille_chars_for_letter = louis.translateString(["braille-patterns.cti",BRAILLE_TABLE], letter)
 
                         if braille_chars_for_letter:
                             # Convert each Braille character to dots representation
