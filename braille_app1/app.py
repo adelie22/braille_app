@@ -4,6 +4,7 @@ from flask import Flask, g
 from config import Config
 from extensions import db
 from interfaces.mock_keyboard import MockBrailleKeyboard
+from interfaces.hardware_keyboard import HardwareBrailleKeyboard
 # Uncomment the following line when using the hardware keyboard
 # from interfaces.hardware_keyboard import HardwareBrailleKeyboard
 
@@ -17,9 +18,10 @@ def create_app():
     # Initialize the keyboard interface
     if Config.USE_MOCK_KEYBOARD:
         keyboard = MockBrailleKeyboard()
+        app.logger.info("Using MockBrailleKeyboard.")
     else:
-        # keyboard = HardwareBrailleKeyboard(port='/dev/ttyUSB0')  # Adjust port as needed
-        keyboard = None
+        keyboard = HardwareBrailleKeyboard(port=Config.SERIAL_PORT, baudrate=Config.BAUD_RATE)
+        app.logger.info("Using HardwareBrailleKeyboard.")
     
     # Create database tables if they don't exist
     with app.app_context():
