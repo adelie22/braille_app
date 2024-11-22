@@ -12,14 +12,14 @@
 #     print(f"Char: '{char}', Unicode: {hex(unicode_value)}")
 import louis
 
-sen = "ABCD"
+sen = "안녕하세요"
 
-a = louis.translateString(["braille-patterns.cti", "/home/guru/liblouis-3.21.0/tables/en-us-g1.ctb"],  f"{sen}")
+a = louis.translateString(["braille-patterns.cti", "/home/guru/liblouis-3.21.0/tables/ko-g1.ctb"],  f"{sen}")
 
 print("eng -> braile :", a)
-braille = "⠃⠗⠁⠊⠇⠇⠑⠀⠞⠗⠁⠝⠎⠇⠁⠞⠕⠗"
+braille = "⠃⠣⠒⠉⠱⠶⠚⠣⠠⠝⠬"
 
-b = louis.backTranslateString(["en-us-g1.ctb"], f"{braille}")
+b = louis.backTranslateString(["/home/guru/liblouis-3.21.0/tables/ko-g1.ctb"], f"{braille}")
 
 print("braille -> eng :", b)
 

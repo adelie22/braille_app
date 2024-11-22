@@ -5,6 +5,21 @@
     <title>Learning Braille</title>
     <style>
         /* Add your styles here */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f9f9f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        h1 {
+            color: #333;
+            margin-top: 20px;
+        }
         .flash.success {
             color: green;
         }
@@ -24,103 +39,160 @@
         .word-display, .input-display {
             margin: 20px 0;
             font-size: 1.5em;
+            color: #444;
         }
         .braille-characters {
             font-family: 'SimBraille', sans-serif; /* Use a braille-friendly font if available */
+            background-color: #e6e6e6;
+            padding: 10px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+        .container {
+            max-width: 600px;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 40px;
+            text-align: center;
+        }
+        audio {
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
-    <h1>Learning Braille</h1>
-    
-    <!-- Flash Messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <ul class="flashes">
-          {% for category, message in messages %}
-            <li class="flash {{ category }}">{{ message }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
-    
-    <!-- Display the Target Word -->
-    {% if target_word %}
-        <div class="word-display">
-            <strong>Target Word:</strong> {{ target_word }}
-        </div>
-    {% endif %}
-    
-    <!-- Display User's Input (Only When Available) -->
-    {% if user_input %}
+    <div class="container">
+        <h1>Learning Braille</h1>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <ul class="flashes">
+              {% for category, message in messages %}
+                <li class="flash {{ category }}">{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+        
+        <!-- Display the Target Word -->
+        {% if target_word %}
+            <div class="word-display">
+                <strong>Target Word:</strong> {{ target_word }}
+            </div>
+        {% endif %}
+        
+        <!-- Display User's Input -->
         <div class="input-display">
             <strong>Your Input:</strong>
-            <span class="braille-characters">{{ user_input }}</span>
-            <br>
-            <em>(Dot Numbers: {{ user_input_dots }})</em>
+            <span id="user-input" class="braille-characters"></span>
         </div>
-    {% endif %}
-    
-    <!-- Instruction -->
-    <p>Translate the braille input to match the target word.</p>
-    
-    <!-- Word Audio -->
-    {% if audio_url and not instructions_audio_url %}
-        <!-- Play word audio only if instructions audio is not present -->
-        <audio id="word-audio" src="{{ audio_url }}" autoplay></audio>
-    {% endif %}
+        
+        <!-- Instruction -->
+        <p>Translate the braille input to match the target word.</p>
 
-    <!-- Message Audio (e.g., "Correct! The next word is...") -->
-    {% if message_audio_url %}
-        <audio id="message-audio" src="{{ message_audio_url }}" autoplay></audio>
-    {% endif %}
+        <!-- Feedback Audio (e.g., "Correct!" or "Incorrect...") -->
+        <audio id="feedback-audio" {% if feedback_audio_url %}src="{{ feedback_audio_url }}"{% endif %} autoplay></audio>
+        
+        <!-- Word Audio -->
+        {% if audio_url %}
+            <audio id="word-audio" src="{{ audio_url }}" autoplay></audio>
+        {% endif %}
+    </div>
     
-    <!-- Instructions Audio (Displayed Only When Input Is Incorrect) -->
-    {% if instructions_audio_url %}
-        <audio id="instructions-audio" src="{{ instructions_audio_url }}" autoplay></audio>
-    {% endif %}
-    
-    <!-- JavaScript for Autoplay Handling -->
+    <!-- JavaScript for live input display and control signals -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Function to handle autoplay for audio elements
+            let formSubmitting = false;
+    
+            function fetchInputBuffer() {
+                if (formSubmitting) return;
+                fetch('/learning/get_current_input_buffer')
+                    .then(response => response.json())
+                    .then(data => {
+                        const inputBuffer = data.input_buffer;
+                        const controlSignal = data.control_signal;
+                        console.log('Received input buffer:', inputBuffer);
+                        console.log('Received control signal:', controlSignal);
+    
+                        // Process inputBuffer to display the Braille characters
+                        if (inputBuffer && inputBuffer.length > 0) {
+                            const brailleChars = inputBuffer.map(binaryStr => {
+                                let brailleValue = 0;
+                                for (let i = 0; i < 6; i++) {
+                                    const bit = binaryStr[5 - i];  // Reverse order of bits
+                                    if (bit === '1') {
+                                        brailleValue |= (1 << i);
+                                    }
+                                }
+                                return String.fromCharCode(0x2800 + brailleValue);
+                            }).join('');
+                            // Update the display
+                            const userInputDisplay = document.getElementById('user-input');
+                            if (userInputDisplay) {
+                                userInputDisplay.textContent = brailleChars;
+                            }
+                        } else {
+                            // Clear the display if the input buffer is empty
+                            const userInputDisplay = document.getElementById('user-input');
+                            if (userInputDisplay) {
+                                userInputDisplay.textContent = '';
+                            }
+                        }
+    
+                        // Handle control signals
+                        if (controlSignal === 'Enter') {
+                            formSubmitting = true;
+                            // Submit a hidden form to trigger the POST method
+                            var form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = '/learning/';
+                            document.body.appendChild(form);
+                            form.submit();
+    
+                            // Clear the user input display immediately
+                            const userInputDisplay = document.getElementById('user-input');
+                            if (userInputDisplay) {
+                                userInputDisplay.textContent = '';
+                            }
+                        } else if (controlSignal === 'Back') {
+                            // Handle the Back control signal if necessary
+                            console.log('Back control signal received.');
+                        }
+                        // Handle other control signals if necessary
+                    })
+                    .catch(error => {
+                        console.error('Error fetching input buffer:', error);
+                    });
+            }
+    
+            // Periodically fetch the input buffer
+            setInterval(fetchInputBuffer, 1000); // Fetch every 1 second
+    
+            // Function to handle audio autoplay
             function handleAudioAutoplay(audioElement) {
                 if (audioElement) {
                     var playPromise = audioElement.play();
                     if (playPromise !== undefined) {
                         playPromise.then(_ => {
-                            // Automatic playback started!
                             console.log(`${audioElement.id} playback started.`);
                         })
                         .catch(error => {
-                            // Automatic playback failed.
                             console.error(`Autoplay was prevented for ${audioElement.id}:`, error);
-                            // Notify the user
-                            alert('Click to play the audio.');
                         });
                     }
                 }
             }
-
-            // Handle Message Audio
-            var messageAudio = document.getElementById('message-audio');
-            handleAudioAutoplay(messageAudio);
-
-            // Handle Word Audio
+            // Handle Word Audio Autoplay
             var wordAudio = document.getElementById('word-audio');
             handleAudioAutoplay(wordAudio);
-
-            // Handle Instructions Audio
-            var instructionsAudio = document.getElementById('instructions-audio');
-            handleAudioAutoplay(instructionsAudio);
+    
+            // Handle Feedback Audio Autoplay
+            var feedbackAudio = document.getElementById('feedback-audio');
+            handleAudioAutoplay(feedbackAudio);
         });
     </script>
-    
-    <!-- Form for Braille Input -->
-    <form method="POST">
-        <!-- Since the input comes from the Braille keyboard, we only need a submit button -->
-        <button type="submit">Submit</button>
-    </form>
-    
 </body>
 </html>

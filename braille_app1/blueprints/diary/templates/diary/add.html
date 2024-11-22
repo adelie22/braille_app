@@ -1,5 +1,3 @@
-<!-- blueprints/diary/templates/diary/add.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,12 +35,14 @@
             min-height: 100px;
             font-size: 1.2em;
             background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+        #connection-status {
+            font-weight: bold;
         }
     </style>
     <!-- Include Socket.IO client library -->
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"
-        integrity="sha384-XEod+j5cSg5JpmmOVjF+I56MIjP8rMwF+N6zL0I5PSTjv3wTIX3VZ7U9mGeLwPCg"
-        crossorigin="anonymous"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
     <h1>Add New Diary Entry</h1>
@@ -61,19 +61,24 @@
     <!-- Instructions for Braille Input -->
     <div class="instructions">
         <p>
-            Please use your Braille keyboard to input your diary entry. As you enter Braille patterns, they will appear below. After completing your entry, press the submit button.
+            Please use your Braille keyboard to input your diary entry. As you enter Braille patterns, they will be translated and appear below. After completing your entry, press the submit button.
         </p>
+    </div>
+    
+    <!-- Connection Status -->
+    <div id="connection-status" class="instructions" style="color: red;">
+        Connecting to Braille keyboard...
     </div>
     
     <!-- Live Input Display -->
     <div id="live-input" class="live-input" aria-live="polite">
-        <!-- Braille input will be displayed here -->
+        <span class="placeholder">Start typing with your Braille keyboard...</span>
     </div>
     
     <!-- Form for Adding Entry -->
     <form method="POST">
-        <!-- Since input is from Braille keyboard, no visible input fields are necessary -->
-        <button type="submit" class="submit-button">Submit</button>
+        <input type="hidden" name="content" id="entry-content">
+        <button type="submit" class="submit-button" disabled>Submit</button>
     </form>
     
     <!-- Back to Entries -->
@@ -88,29 +93,61 @@
         document.addEventListener('DOMContentLoaded', function() {
             // Connect to SocketIO server
             var socket = io();
-
-            // Reference to the live input display
             var liveInput = document.getElementById('live-input');
+            var entryContent = document.getElementById('entry-content');
+            var submitButton = document.querySelector('.submit-button');
+            var connectionStatus = document.getElementById('connection-status');
 
-            // Store the current entry being added
-            var currentEntry = '';
+            // Load previously stored content from local storage (if any)
+            if (localStorage.getItem('liveInputContent')) {
+                liveInput.textContent = localStorage.getItem('liveInputContent');
+                entryContent.value = localStorage.getItem('liveInputContent');
+                // Enable submit button if there is existing content
+                if (entryContent.value.trim().length > 0) {
+                    submitButton.disabled = false;
+                }
+            }
 
-            // Listen for braille_input events
+            // Listen for connection events
+            socket.on('connect', function() {
+                connectionStatus.textContent = 'Connected to Braille keyboard';
+                connectionStatus.style.color = 'green';
+            });
+
+            socket.on('disconnect', function() {
+                connectionStatus.textContent = 'Disconnected from Braille keyboard. Trying to reconnect...';
+                connectionStatus.style.color = 'red';
+            });
+
+            // Listen for 'braille_input' events
             socket.on('braille_input', function(data) {
-                var brailleByte = data.braille_byte;
-                var brailleChar = String.fromCharCode(0x2800 + brailleByte);
-                currentEntry += brailleChar;
-                liveInput.textContent = currentEntry;
+                if (data && data.translated_text) {
+                    // Hide placeholder if present
+                    var placeholder = liveInput.querySelector('.placeholder');
+                    if (placeholder) {
+                        placeholder.style.display = 'none';
+                    }
+
+                    // Append the translated text to the live input display
+                    liveInput.textContent += data.translated_text;
+
+                    // Update the hidden input field for form submission
+                    entryContent.value = liveInput.textContent;
+
+                    // Store the live input in local storage
+                    localStorage.setItem('liveInputContent', liveInput.textContent);
+
+                    // Enable the submit button when there is content
+                    if (entryContent.value.trim().length > 0) {
+                        submitButton.disabled = false;
+                    }
+                }
             });
 
-            // Listen for input_finished events
-            socket.on('input_finished', function(data) {
-                var count = data.count;
-                console.log(`Input session finished with ${count} braille patterns.`);
-                // Optionally, you can disable further input or provide feedback
+            // Clear local storage when the form is submitted to avoid stale data
+            document.querySelector('form').addEventListener('submit', function() {
+                localStorage.removeItem('liveInputContent');
             });
-
-            // Optionally, handle form submission via AJAX if needed
         });
     </script>
 </body>
