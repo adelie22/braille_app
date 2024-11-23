@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Braille Keyboard Input</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        #text {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Braille Keyboard Input</h1>
+    <p id="text"></p>
+    <script>
+        function fetchText() {
+            fetch('/get_text')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('text').innerText = data.text;
+                })
+                .catch(error => console.error('Error fetching text:', error));
+        }
+        setInterval(fetchText, 500);  // Fetch every 500 milliseconds
+        fetchText();  // Initial fetch
+    </script>
+</body>
+</html>
