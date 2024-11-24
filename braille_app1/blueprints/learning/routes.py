@@ -1,4 +1,4 @@
-# learning.py
+# blueprints/learning/routes.py
 
 from . import learning_bp
 from flask import render_template, request, session, g, redirect, url_for, flash, send_file, jsonify
@@ -42,9 +42,9 @@ def index():
     POST: Processes input from the Braille keyboard or control signals.
     """
     if request.method == 'GET':
-        # Set keyboard to buffered mode for this particular function
+        # Enable buffered mode at the start of a learning session
         g.keyboard.set_buffered_mode(True)
-        logging.debug("Buffered mode set to True for learning index GET request.")
+        logging.debug("Buffered mode set to True for learning session.")
 
         # Check if there's a current word in the session
         if 'current_word' in session and session['current_word']:
@@ -127,8 +127,10 @@ def index():
                                 session['current_word'] = new_word_entry.word.lower()
                                 audio_url = url_for('learning.audio', word_id=new_word_entry.id)
                                 logging.debug(f"Next word selected: {new_word_entry.word} with ID: {new_word_entry.id}")
-                                # Clear the display buffer
-                                g.keyboard.clear_display_buffer()
+                                # Clear the input buffer
+                                g.keyboard.clear_input_buffer()
+                                # Disable buffered mode
+                                g.keyboard.set_buffered_mode(False)
                                 return render_template(
                                     'learning/index.html',
                                     target_word=new_word_entry.word,
@@ -138,8 +140,10 @@ def index():
                             else:
                                 flash("No more words available in the database.", "error")
                                 logging.warning("No more words available after correct input.")
-                                # Clear the display buffer
-                                g.keyboard.clear_display_buffer()
+                                # Clear the input buffer
+                                g.keyboard.clear_input_buffer()
+                                # Disable buffered mode
+                                g.keyboard.set_buffered_mode(False)
                                 return render_template('learning/index.html')
                         else:
                             # Input is incorrect
@@ -151,8 +155,10 @@ def index():
                             feedback_text = "Wrong."
                             generate_feedback_audio(feedback_text, 'feedback.mp3')
 
-                            # Clear the display buffer
-                            g.keyboard.clear_display_buffer()
+                            # Clear the input buffer
+                            g.keyboard.clear_input_buffer()
+                            # Disable buffered mode
+                            g.keyboard.set_buffered_mode(False)
 
                             # Render the template with the same target word and feedback audio
                             word_entry = EnGrade1.query.filter_by(word=target_word).first()
@@ -181,11 +187,6 @@ def index():
         else:
             logging.debug("No Enter signal detected during POST request.")
             return redirect(url_for('learning.index'))
-    else:
-        # Handle unexpected methods
-        logging.debug("Unexpected request method.")
-        return redirect(url_for('learning.index'))
-
 
 @learning_bp.route('/audio/<int:word_id>')
 def audio(word_id):
@@ -211,9 +212,6 @@ def audio(word_id):
     if not os.path.exists(audio_path):
         try:
             # Prepare the text input for TTS using SSML
-            from google.cloud import texttospeech
-            tts_client = texttospeech.TextToSpeechClient()
-
             synthesis_input = texttospeech.SynthesisInput(ssml=f"<speak>{word_entry.word}</speak>")
 
             # Build the voice request (language code and voice selection)
@@ -273,6 +271,7 @@ def instructions_audio(filename):
         download_name=filename
     )
 
+
 def generate_feedback_audio(text, filename):
     """
     Generates an audio file for the given text using Google TTS.
@@ -284,10 +283,7 @@ def generate_feedback_audio(text, filename):
         os.makedirs(audio_dir, exist_ok=True)  # Create directory if it doesn't exist
         audio_path = os.path.join(audio_dir, filename)
 
-        # Initialize Google TTS client
-        from google.cloud import texttospeech
-        tts_client = texttospeech.TextToSpeechClient()
-
+        # Prepare the text input for TTS
         synthesis_input = texttospeech.SynthesisInput(text=text)
 
         # Build the voice request (language code and voice selection)
@@ -314,6 +310,7 @@ def generate_feedback_audio(text, filename):
             logging.debug(f'Feedback audio content written to {audio_path}')
     except Exception as e:
         logging.error(f"Error during TTS synthesis for feedback: {e}")
+
 
 @learning_bp.route('/message_audio/<filename>')
 def message_audio(filename):

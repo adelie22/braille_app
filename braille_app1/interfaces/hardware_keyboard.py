@@ -1,3 +1,5 @@
+# hardware_keyboard.py
+
 import threading
 from collections import deque
 import queue
@@ -5,6 +7,7 @@ import logging
 import serial
 import time
 
+# Configure logging
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -14,6 +17,9 @@ logging.basicConfig(
 )
 
 class SingletonMeta(type):
+    """
+    A thread-safe implementation of Singleton.
+    """
     _instances = {}
     _lock: threading.Lock = threading.Lock()  # Ensures thread-safe singleton
 
@@ -25,10 +31,12 @@ class SingletonMeta(type):
         return cls._instances[cls]
 
 class HardwareBrailleKeyboard(metaclass=SingletonMeta):
+    """
+    Singleton class to manage hardware Braille keyboard interactions.
+    """
     def __init__(self, port, baudrate=9600, timeout=5):
-        self.input_buffer = deque(maxlen=100)        # Bounded buffer for processing
-        self.display_buffer = deque(maxlen=100)      # Bounded buffer for display
-        self.queue = queue.Queue()
+        self.input_buffer = deque(maxlen=100)        # Single buffer for processing and display
+        self.queue = queue.Queue(maxsize=10)        # Limit queue size to prevent overflow
         self.buffered_mode = False
         self.lock = threading.Lock()
         
@@ -45,7 +53,9 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
             self.serial_port = None
 
     def _serial_read_thread(self):
-        """ Continuously read from the serial port and put data into the input queue or buffer. """
+        """
+        Continuously read from the serial port and put data into the input queue or buffer.
+        """
         while True:
             try:
                 with self.lock:
@@ -53,36 +63,57 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
                         line = self.serial_port.readline().decode('utf-8').strip()
                         logging.debug(f"Received serial line: {line}")
 
-                        # Process Braille signals
+                        # Log the current state of buffered_mode
+                        logging.debug(f"Current buffered_mode: {self.buffered_mode}")
+
+                        # Process Braille signals only if buffered_mode is enabled
                         if self.buffered_mode and line.startswith("Braille Signal (6-bit): "):
                             binary_str = line.replace("Braille Signal (6-bit): ", "")
                             if len(binary_str) == 6 and all(c in '01' for c in binary_str):
                                 self.input_buffer.append(binary_str)
-                                self.display_buffer.append(binary_str)
                                 logging.info(f"Buffered Input Updated: {list(self.input_buffer)}")
+                        
                         # Handle Control Signals
                         elif line.startswith("Control Signal: "):
                             control_signal = line.replace("Control Signal: ", "")
                             logging.info(f"Received Control Signal: {control_signal}")
 
                             if control_signal == "Enter":
-                                if self.buffered_mode:
-                                    # Put the Braille input first
-                                    self.queue.put({
-                                        'type': 'braille_input',
-                                        'data': list(self.input_buffer)  # Convert deque to list
-                                    })
-                                    self.input_buffer.clear()
+                                if self.buffered_mode and self.input_buffer:
+                                    # Check if there's already an unprocessed braille_input
+                                    with self.queue.mutex:
+                                        queue_list = list(self.queue.queue)
+                                        existing_braille = any(
+                                            item.get('type') == 'braille_input' for item in queue_list
+                                        )
+                                    if not existing_braille:
+                                        try:
+                                            self.queue.put({
+                                                'type': 'braille_input',
+                                                'data': list(self.input_buffer)  # Convert deque to list
+                                            }, block=False)
+                                            logging.debug("Braille input queued successfully.")
+                                        except queue.Full:
+                                            logging.warning("Queue is full. Discarding new braille input.")
+                                        self.input_buffer.clear()
                                 # Then put the Enter control signal
-                                self.queue.put({
-                                    'type': 'control',
-                                    'data': control_signal
-                                })
+                                try:
+                                    self.queue.put({
+                                        'type': 'control',
+                                        'data': control_signal
+                                    }, block=False)
+                                    logging.debug("Control signal 'Enter' queued successfully.")
+                                except queue.Full:
+                                    logging.warning("Queue is full. Discarding control signal.")
                             else:
-                                self.queue.put({
-                                    'type': 'control',
-                                    'data': control_signal
-                                })
+                                try:
+                                    self.queue.put({
+                                        'type': 'control',
+                                        'data': control_signal
+                                    }, block=False)
+                                    logging.debug(f"Control signal '{control_signal}' queued successfully.")
+                                except queue.Full:
+                                    logging.warning(f"Queue is full. Discarding control signal '{control_signal}'.")
             except serial.SerialException as e:
                 logging.error(f"Serial exception: {e}")
                 if self.serial_port:
@@ -105,31 +136,34 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
 
     def get_current_input_buffer(self):
         """
-        Return the current display buffer without consuming it.
+        Return the current input buffer without consuming it.
         """
         with self.lock:
-            return list(self.display_buffer)  # Convert deque to list for safe access
+            return list(self.input_buffer)  # Convert deque to list for safe access
 
     def set_buffered_mode(self, buffered):
         """
         Set whether the keyboard should use buffered input mode.
         """
-        self.buffered_mode = buffered
-        if not buffered:
-            with self.lock:
+        with self.lock:
+            previous_state = self.buffered_mode
+            self.buffered_mode = buffered
+            if not buffered:
                 self.input_buffer.clear()        # Clear the processing buffer
-                self.display_buffer.clear()      # Clear the display buffer
-            logging.info("Buffered mode disabled. Input buffer and display buffer cleared.")
-        else:
-            logging.info("Buffered mode enabled.")
+                logging.info("Buffered mode disabled. Input buffer cleared.")
+            else:
+                logging.info("Buffered mode enabled.")
+            # Log the change with the new state and thread name
+            logging.debug(f"Buffered mode changed from {previous_state} to {self.buffered_mode} by {threading.current_thread().name}")
 
-    def clear_display_buffer(self):
+
+    def clear_input_buffer(self):
         """
-        Clear the display buffer. Call this after processing an input.
+        Clear the input buffer. Call this after processing an input.
         """
         with self.lock:
-            self.display_buffer.clear()
-            logging.debug("Display buffer cleared.")
+            self.input_buffer.clear()
+            logging.debug("Input buffer cleared.")
 
     def peek_control_signal(self):
         """

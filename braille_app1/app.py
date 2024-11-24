@@ -1,3 +1,5 @@
+# app.py
+
 from flask import Flask, g
 from config import Config
 from extensions import db
@@ -28,10 +30,11 @@ def create_app():
     with app.app_context():
         db.create_all()
     
-    # Attach the keyboard to the app context
+    # Attach the keyboard to the app context before each request
     @app.before_request
     def before_request():
         g.keyboard = keyboard
+        app.logger.debug("before_request: g.keyboard has been set.")
     
     # Import and register blueprints
     from blueprints.learning import learning_bp
@@ -52,4 +55,4 @@ def create_app():
 
 if __name__ == '__main__':
     app = create_app()
-    app.run(debug=True, host='0.0.0.0')
+    app.run(debug=True, host='0.0.0.0', use_reloader=False)
