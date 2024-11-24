@@ -1,0 +1,350 @@
+<!-- blueprints/diary/templates/diary/diary_content.html -->
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diary Entry - {{ date }}</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            color: #000000;
+        }
+
+        .content {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            line-height: 1.8;
+            font-size: 16px;
+            color: #333;
+            max-width: 800px;
+            margin: 20px auto;
+        }
+
+        .highlight {
+            background-color: rgb(0, 0, 0);
+            color: white;
+        }
+
+        textarea.edit-textarea {
+            width: 100%;
+            height: 400px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #000000;
+            border-radius: 5px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+            resize: vertical;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>{{ date }}의 다이어리</h1>
+    <div class="content" id="diaryContent">
+        {{ content }}
+    </div>
+
+    <!-- JavaScript for interactivity and accessibility -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let contentElement = document.getElementById('diaryContent');
+            let originalText = contentElement.innerText;  // Full diary text
+            let currentIndex = 0;  // Current cursor position
+            let isEditMode = false;  // Flag to check edit mode
+            const diaryId = "{{ id }}";  // Current diary ID
+            let characters = []; // Array to hold character elements
+            let isSpeaking = false; // Flag to check if speech is ongoing
+            let currentUtterance = null; // Current speech synthesis utterance
+            let speakingEndIndex = null; // Position where speech ends
+
+            // Function to speak mode changes
+            function speakModeChange(mode, callback = null) {
+                window.speechSynthesis.cancel();  // Cancel ongoing speech
+                setTimeout(() => {
+                    const utterance = new SpeechSynthesisUtterance(mode);
+                    utterance.lang = 'ko-KR';  // Korean language
+                    window.speechSynthesis.speak(utterance);
+
+                    // Execute callback after speech ends
+                    if (callback) {
+                        utterance.onend = callback;
+                    }
+                }, 50);
+            }
+
+            // Function to wrap text in spans for individual character highlighting
+            function wrapTextWithSpans(text) {
+                return [...text].map(char => `<span class="char">${char}</span>`).join('');
+            }
+
+            // Initialize characters and apply highlight
+            function initializeCharacters() {
+                contentElement.innerHTML = wrapTextWithSpans(originalText);
+                characters = document.querySelectorAll('.char');
+
+                // Apply highlight to the first character
+                currentIndex = 0;
+                if (characters.length > 0) {
+                    applyHighlight(currentIndex);
+                }
+            }
+
+            // Apply highlight to a specific character
+            function applyHighlight(index) {
+                clearAllHighlights();
+                if (characters[index]) {
+                    characters[index].classList.add('highlight');
+                    characters[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+
+            // Remove all highlights
+            function clearAllHighlights() {
+                characters.forEach(char => char.classList.remove('highlight'));
+            }
+
+            // Initialize on page load
+            initializeCharacters();
+
+            // Handle keyboard navigation and speech
+            document.addEventListener('keydown', (e) => {
+                if (isEditMode) {
+                    return;  // Do nothing in edit mode
+                }
+
+                // Ctrl + Backspace to navigate back
+                if (e.key === 'Backspace' && e.ctrlKey) {
+                    window.location.href = "/diary/";  // Navigate back to diary list
+                    return;
+                }
+
+                // Cancel ongoing speech if any key is pressed except Enter
+                if (isSpeaking && e.key !== 'Enter') {
+                    window.speechSynthesis.cancel();
+                    isSpeaking = false;
+                }
+
+                // Remove highlight from current character
+                clearAllHighlights();
+
+                if (e.key === 'ArrowRight') {
+                    if (currentIndex < characters.length - 1) {
+                        currentIndex++;
+                    }
+                } else if (e.key === 'ArrowLeft') {
+                    if (currentIndex > 0) {
+                        currentIndex--;
+                    }
+                } else if (e.key === 'ArrowDown') {
+                    let nextLineIndex = getNextLineStartIndex(currentIndex, 1);
+                    if (nextLineIndex !== -1) {
+                        currentIndex = nextLineIndex;
+                    }
+                } else if (e.key === 'ArrowUp') {
+                    let previousLineIndex = getNextLineStartIndex(currentIndex, -1);
+                    if (previousLineIndex !== -1) {
+                        currentIndex = previousLineIndex;
+                    }
+                } else if (e.key === 'Enter' && e.ctrlKey) {
+                    // Ctrl + Enter to enter edit mode
+                    if (!isEditMode) {
+                        enterEditMode(currentIndex);
+                    }
+                    return;  // Prevent default behavior
+                } else if (e.key === 'Enter') {
+                    if (isSpeaking) {
+                        // If speaking, cancel the speech
+                        window.speechSynthesis.cancel();
+                        isSpeaking = false;
+
+                        // Apply highlight to the last read character
+                        if (speakingEndIndex !== null) {
+                            currentIndex = Math.min(speakingEndIndex, characters.length - 1);
+                            applyHighlight(currentIndex);
+                        }
+                    } else {
+                        // Start speaking from the current index
+                        speakTextFromIndex(currentIndex);
+                    }
+                    return;  // Prevent default behavior
+                }
+
+                // Apply highlight to the new character
+                applyHighlight(currentIndex);
+                speakCharacter(characters[currentIndex].innerText);
+            });
+
+            // Function to speak a single character
+            function speakCharacter(character) {
+                window.speechSynthesis.cancel();
+                setTimeout(() => {
+                    const utterance = new SpeechSynthesisUtterance(character);
+                    utterance.lang = 'ko-KR';
+                    window.speechSynthesis.speak(utterance);
+                }, 100);
+            }
+
+            // Function to speak text starting from a specific index
+            function speakTextFromIndex(index) {
+                window.speechSynthesis.cancel();  // Stop any ongoing speech
+
+                let remainingText = '';
+                for (let i = index; i < characters.length; i++) {
+                    remainingText += characters[i].innerText;
+                }
+
+                const utterance = new SpeechSynthesisUtterance(remainingText);
+                utterance.lang = 'ko-KR';
+                isSpeaking = true;
+                currentUtterance = utterance;
+
+                // Update speakingEndIndex based on speech progress
+                utterance.onboundary = (event) => {
+                    if (event.charIndex !== undefined) {
+                        speakingEndIndex = index + event.charIndex;
+                    }
+                };
+
+                // Handle end of speech
+                utterance.onend = () => {
+                    isSpeaking = false;
+                    if (speakingEndIndex !== null) {
+                        currentIndex = Math.min(speakingEndIndex, characters.length - 1);
+                        applyHighlight(currentIndex);
+                    }
+                };
+
+                // Start speaking after a slight delay
+                setTimeout(() => {
+                    window.speechSynthesis.speak(utterance);
+                }, 50);
+            }
+
+            // Function to find the start index of the next or previous line
+            function getNextLineStartIndex(currentIndex, direction) {
+                const currentElement = characters[currentIndex];
+                const currentTop = currentElement.getBoundingClientRect().top;
+
+                let newIndex = currentIndex;
+                while (newIndex >= 0 && newIndex < characters.length) {
+                    newIndex += direction;
+                    if (newIndex < 0 || newIndex >= characters.length) {
+                        return -1;
+                    }
+                    const newElement = characters[newIndex];
+                    const newTop = newElement.getBoundingClientRect().top;
+
+                    if (newTop !== currentTop) {
+                        // Move to the start of the new line
+                        while (newIndex > 0 && characters[newIndex - 1].getBoundingClientRect().top === newTop) {
+                            newIndex--;
+                        }
+                        return newIndex;
+                    }
+                }
+                return -1;
+            }
+
+            // Function to enter edit mode
+            function enterEditMode(startIndex) {
+                isEditMode = true;
+
+                speakModeChange('입력모드');  // Announce mode change
+
+                // Replace content with a textarea for editing
+                const textarea = document.createElement('textarea');
+                textarea.classList.add('edit-textarea');
+                textarea.value = originalText;
+                contentElement.replaceWith(textarea);
+
+                textarea.focus();
+                textarea.setSelectionRange(startIndex, startIndex); // Set cursor position
+
+                // Handle key events in the textarea
+                textarea.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                        setTimeout(() => {
+                            let cursorPosition = textarea.selectionStart;
+                            let character = textarea.value[cursorPosition - 1] || '';
+                            speakCharacter(character);
+                        }, 50);
+                    } else if (e.key === ' ') {
+                        let cursorPosition = textarea.selectionStart;
+                        if (cursorPosition > 0) {
+                            const textUpToCursor = textarea.value.slice(0, cursorPosition);
+                            const words = textUpToCursor.trim().split(' ');
+                            if (words.length > 0) {
+                                const lastWord = words[words.length - 1];
+                                speakWord(lastWord);
+                            }
+                        }
+                    } else if (e.key === 'Enter' && e.ctrlKey) {
+                        // Ctrl + Enter to save changes
+                        speakModeChange('탐색모드', () => {
+                            saveContentAndReload(textarea.value);
+                        });
+                    } else if (e.key === 'Escape') {
+                        // Escape to cancel editing
+                        speakModeChange('탐색모드', () => {
+                            textarea.replaceWith(contentElement);
+                            isEditMode = false;
+
+                            // Re-initialize characters and highlight
+                            contentElement = document.getElementById('diaryContent');
+                            initializeCharacters();
+                        });
+                    }
+                });
+            }
+
+            // Function to save edited content and reload the page
+            function saveContentAndReload(updatedContent) {
+                fetch('/diary/update_content', {  // Ensure this URL matches your Flask route
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: diaryId, // Use the diary ID for updating
+                        content: updatedContent
+                    })
+                }).then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Reload the page to reflect changes
+                            location.reload();
+                        } else {
+                            console.error('저장 실패 이유:', data.error);
+                            alert('내용을 저장하는데 실패했습니다: ' + data.error);
+                        }
+                    }).catch(error => {
+                        console.error('저장 중 오류 발생:', error);
+                        alert('저장 중 오류가 발생했습니다. 다시 시도해 주세요.');
+                    });
+            }
+
+            // Function to speak a full word
+            function speakWord(word) {
+                window.speechSynthesis.cancel();
+                setTimeout(() => {
+                    const utterance = new SpeechSynthesisUtterance(word);
+                    utterance.lang = 'ko-KR';
+                    window.speechSynthesis.speak(utterance);
+                }, 100);
+            }
+        });
+    </script>
+</body>
+</html>

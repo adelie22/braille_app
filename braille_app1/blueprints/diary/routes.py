@@ -1,146 +1,155 @@
-from flask import render_template, request, redirect, url_for, flash, g, send_file
+# blueprints/diary/routes.py
+
+from flask import Blueprint, render_template, request, redirect, url_for, flash, g, jsonify, Response, send_file
 from models import DiaryEntry
 from extensions import db
 from google.cloud import texttospeech
+from datetime import datetime
 import os
+import json
 import logging
+
 from . import diary_bp
 
 # Configure logging if not already done
 logging.basicConfig(level=logging.DEBUG)
 
-# Google TTS client initialization
+# Initialize Google TTS client
 tts_client = texttospeech.TextToSpeechClient()
 
-@diary_bp.route('/')
+@diary_bp.route('/', methods=['GET'])
 def list_entries():
     """
     List all diary entries.
     """
-    entries = DiaryEntry.query.order_by(DiaryEntry.entry_date.desc()).all()
-    return render_template('diary/index.html', entries=entries)
+    entries = DiaryEntry.query.order_by(DiaryEntry.date.desc()).all()  # Updated field name
+    return render_template('diary/diary.html', entries=entries)
 
-@diary_bp.route('/add', methods=['GET', 'POST'])
-@diary_bp.route('/add/<int:entry_id>', methods=['GET', 'POST'])
-def add_entry(entry_id=None):
+@diary_bp.route('/create', methods=['POST'])
+def create_diary():
     """
-    Add a new diary entry or edit an existing one.
+    Create a new diary entry.
     """
-    entry = None
-    if entry_id:
-        entry = DiaryEntry.query.get(entry_id)
-        if not entry:
-            flash("Diary entry not found.", "error")
-            return redirect(url_for('diary.list_entries'))
+    data = request.get_json()
+    date_str = data.get('date')
+    content = data.get('content')
 
-    if request.method == 'POST':
-        # Read inputs from the Braille keyboard
-        input_sequence = g.keyboard.read_input()
-
-        if input_sequence:
-            content = entry.content if entry else ''  # If editing, start with existing content
-            for braille_byte in input_sequence:
-                # Handle control bytes for editing content
-                if 224 <= braille_byte <= 231:  # E0 to E7 control bytes
-                    if braille_byte == 226:  # E2: Backspace
-                        content = content[:-1]
-                    elif braille_byte == 225:  # E1: Space
-                        content += ' '
-                    # Additional control inputs can be handled here
-                    continue
-
-                # Convert Braille byte to character
-                braille_char = chr(0x2800 + braille_byte)
-                content += braille_char
-
-            if not content:
-                flash("Converted content is empty. Please try again.", "error")
-                return redirect(url_for('diary.add_entry', entry_id=entry_id) if entry else url_for('diary.add_entry'))
-
-            # Save content to database
-            if entry:
-                entry.content = content
-                flash("Diary entry updated successfully!", "success")
-            else:
-                entry = DiaryEntry(content=content)
-                db.session.add(entry)
-                flash("Diary entry added successfully!", "success")
-
-            db.session.commit()
-            return redirect(url_for('diary.list_entries'))
-
-    # For GET requests, render the add_entry page, including existing content if editing
-    return render_template('diary/add.html', entry=entry)
-
-@diary_bp.route('/speak/<int:entry_id>')
-def speak_entry(entry_id):
-    """
-    Convert a diary entry to speech and play it.
-    """
-    entry = DiaryEntry.query.get(entry_id)
-
-    if not entry:
-        flash("Diary entry not found.", "error")
-        return redirect(url_for('diary.list_entries'))
+    if not date_str or not content:
+        return jsonify({'success': False, 'error': 'Missing date or content'}), 400
 
     try:
-        # Define paths
-        blueprint_dir = os.path.dirname(__file__)
-        audio_dir = os.path.join(blueprint_dir, 'audio_files')
-        os.makedirs(audio_dir, exist_ok=True)
-        audio_filename = f"entry_{entry_id}.mp3"
-        audio_path = os.path.join(audio_dir, audio_filename)
+        # Parse the date to ensure correct format
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')  # Updated variable name
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Invalid date format. Use YYYY-MM-DD.'}), 400
 
-        # Check if audio already exists
-        if not os.path.exists(audio_path):
-            # Synthesize speech
-            synthesis_input = texttospeech.SynthesisInput(text=entry.content)
-            voice = texttospeech.VoiceSelectionParams(
-                language_code="en-US",
-                ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL
-            )
-            audio_config = texttospeech.AudioConfig(
-                audio_encoding=texttospeech.AudioEncoding.MP3,
-                speaking_rate=0.9,  # Slightly slower
-                pitch=0.0
-            )
-            response = tts_client.synthesize_speech(
-                input=synthesis_input, voice=voice, audio_config=audio_config
-            )
-
-            # Save the audio file
-            with open(audio_path, 'wb') as audio_file:
-                audio_file.write(response.audio_content)
-                logging.debug(f"Audio content written to {audio_path}")
-
-        # Serve the audio file
-        return send_file(
-            audio_path,
-            mimetype="audio/mpeg",
-            as_attachment=False,
-            download_name=audio_filename
-        )
-
+    try:
+        new_entry = DiaryEntry(date=date_obj, content=content)  # Updated field name
+        db.session.add(new_entry)
+        db.session.commit()
+        return jsonify({'success': True}), 200
     except Exception as e:
-        logging.error(f"Error during speech synthesis: {e}")
-        flash(f"Error during speech synthesis: {e}", "error")
-        return redirect(url_for('diary.list_entries'))
+        db.session.rollback()
+        logging.error(f"Error creating diary entry: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
-@diary_bp.route('/delete/<int:entry_id>', methods=['POST'])
-def delete_entry(entry_id):
+@diary_bp.route('/delete/<int:id>', methods=['POST'])
+def delete_diary(id):
     """
     Delete a diary entry by its ID.
     """
-    entry = DiaryEntry.query.get(entry_id)
-    if not entry:
-        flash("Diary entry not found.", "error")
-        return redirect(url_for('diary.list_entries'))
     try:
+        entry = DiaryEntry.query.get(id)
+        if not entry:
+            return jsonify({'success': False, 'error': 'Diary entry not found.'}), 404
+
         db.session.delete(entry)
         db.session.commit()
-        flash("Diary entry deleted successfully!", "success")
+        return jsonify({'success': True}), 200
     except Exception as e:
         db.session.rollback()
-        logging.error(f"Error deleting diary entry {entry_id}: {e}")
-        flash(f"Error deleting diary entry: {e}", "error")
-    return redirect(url_for('diary.list_entries'))
+        logging.error(f"Error deleting diary entry {id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@diary_bp.route('/content/<int:id>', methods=['GET'])
+def get_diary_content(id):
+    """
+    Render a specific diary entry for viewing and editing.
+    """
+    entry = DiaryEntry.query.get(id)
+    if entry:
+        return render_template(
+            'diary/diary_content.html',
+            content=entry.content,
+            date=entry.date.strftime('%Y-%m-%d'),  # Updated field name
+            id=entry.id
+        )
+    else:
+        return jsonify({"error": "Diary entry not found"}), 404
+
+@diary_bp.route('/update_content', methods=['POST'])
+def update_diary_content():
+    """
+    Update the content of a diary entry.
+    """
+    data = request.get_json()
+    diary_id = data.get('id')
+    updated_content = data.get('content')
+
+    if not diary_id or not updated_content:
+        return jsonify({'success': False, 'error': 'Missing id or content'}), 400
+
+    try:
+        entry = DiaryEntry.query.get(diary_id)
+        if not entry:
+            return jsonify({'success': False, 'error': 'Diary entry not found.'}), 404
+
+        entry.content = updated_content
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Error updating diary entry {diary_id}: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@diary_bp.route('/content_from_char', methods=['GET'])
+def get_content_from_char():
+    """
+    Get remaining content from a specific character index for speech synthesis.
+    """
+    date_str = request.args.get('date')  # Diary date
+    char_index = request.args.get('char_index')  # Cursor character index
+
+    # Validate required parameters
+    if not date_str or char_index is None:
+        return jsonify({"error": "date and char_index parameters are required"}), 400
+
+    # Validate date format
+    try:
+        date_obj = datetime.strptime(date_str, '%Y-%m-%d')  # Updated field name
+    except ValueError:
+        return jsonify({"error": "date must be in YYYY-MM-DD format"}), 400
+
+    # Convert char_index to integer
+    try:
+        char_index = int(char_index)
+    except ValueError:
+        return jsonify({"error": "char_index must be an integer"}), 400
+
+    entry = DiaryEntry.query.filter_by(date=date_obj).first()  # Updated field name
+    if entry:
+        content = entry.content
+        if 0 <= char_index < len(content):
+            remaining_content = content[char_index:].replace('\n', ' ')
+            return jsonify({"remaining_content": remaining_content})
+        else:
+            return jsonify({"error": f"Character index {char_index} is out of range. Valid range is 0 to {len(content)-1}"}), 400
+    else:
+        return jsonify({"error": "Diary entry not found"}), 404
+
+@diary_bp.route('/index', methods=['GET'])
+def show_diary_page_detail():
+    """
+    Render a different index page if needed.
+    """
+    return render_template('index.html')  # Ensure 'index.html' exists in your main templates directory
