@@ -102,21 +102,26 @@
         {% endif %}
     </div>
     
-    <!-- JavaScript for live input display and control signals -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            let formSubmitting = false;
-    
-            function fetchInputBuffer() {
-                if (formSubmitting) return;
-                fetch('/learning/get_current_input_buffer')
-                    .then(response => response.json())
-                    .then(data => {
-                        const inputBuffer = data.input_buffer;
-                        const controlSignal = data.control_signal;
-                        console.log('Received input buffer:', inputBuffer);
-                        console.log('Received control signal:', controlSignal);
-    
+    <!-- index.html (only the script section) -->
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        let formSubmitting = false;
+        let lastDisplayBuffer = [];
+
+        function fetchInputBuffer() {
+            if (formSubmitting) return;
+            fetch('/learning/get_current_input_buffer')
+                .then(response => response.json())
+                .then(data => {
+                    const inputBuffer = data.input_buffer;
+                    const controlSignal = data.control_signal;
+                    console.log('Received input buffer:', inputBuffer);
+                    console.log('Received control signal:', controlSignal);
+
+                    // Check if inputBuffer is different from lastDisplayBuffer
+                    if (JSON.stringify(inputBuffer) !== JSON.stringify(lastDisplayBuffer)) {
+                        lastDisplayBuffer = inputBuffer;
                         // Process inputBuffer to display the Braille characters
                         if (inputBuffer && inputBuffer.length > 0) {
                             const brailleChars = inputBuffer.map(binaryStr => {
@@ -135,64 +140,67 @@
                                 userInputDisplay.textContent = brailleChars;
                             }
                         } else {
-                            // Clear the display if the input buffer is empty
-                            const userInputDisplay = document.getElementById('user-input');
-                            if (userInputDisplay) {
-                                userInputDisplay.textContent = '';
-                            }
+                            // Do not clear the display unless it's intended (e.g., after processing)
+                            // Remove the following lines to prevent unintended clearing:
+                            // const userInputDisplay = document.getElementById('user-input');
+                            // if (userInputDisplay) {
+                            //     userInputDisplay.textContent = '';
+                            // }
                         }
-    
-                        // Handle control signals
-                        if (controlSignal === 'Enter') {
-                            formSubmitting = true;
-                            // Submit a hidden form to trigger the POST method
-                            var form = document.createElement('form');
-                            form.method = 'POST';
-                            form.action = '/learning/';
-                            document.body.appendChild(form);
-                            form.submit();
-    
-                            // Clear the user input display immediately
-                            const userInputDisplay = document.getElementById('user-input');
-                            if (userInputDisplay) {
-                                userInputDisplay.textContent = '';
-                            }
-                        } else if (controlSignal === 'Back') {
-                            // Handle the Back control signal if necessary
-                            console.log('Back control signal received.');
+                    }
+
+                    // Handle control signals
+                    if (controlSignal === 'Enter') {
+                        formSubmitting = true;
+                        // Submit a hidden form to trigger the POST method
+                        var form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = '/learning/';
+                        document.body.appendChild(form);
+                        form.submit();
+
+                        // Clear the user input display immediately
+                        const userInputDisplay = document.getElementById('user-input');
+                        if (userInputDisplay) {
+                            userInputDisplay.textContent = '';
                         }
-                        // Handle other control signals if necessary
+                        lastDisplayBuffer = []; // Reset the lastDisplayBuffer
+                    } else if (controlSignal === 'Back') {
+                        // Handle the Back control signal if necessary
+                        console.log('Back control signal received.');
+                    }
+                    // Handle other control signals if necessary
+                })
+                .catch(error => {
+                    console.error('Error fetching input buffer:', error);
+                });
+        }
+
+        // Periodically fetch the input buffer
+        setInterval(fetchInputBuffer, 1000); // Fetch every 0.5 second
+
+        // Function to handle audio autoplay
+        function handleAudioAutoplay(audioElement) {
+            if (audioElement) {
+                var playPromise = audioElement.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(_ => {
+                        console.log(`${audioElement.id} playback started.`);
                     })
                     .catch(error => {
-                        console.error('Error fetching input buffer:', error);
+                        console.error(`Autoplay was prevented for ${audioElement.id}:`, error);
                     });
-            }
-    
-            // Periodically fetch the input buffer
-            setInterval(fetchInputBuffer, 1000); // Fetch every 1 second
-    
-            // Function to handle audio autoplay
-            function handleAudioAutoplay(audioElement) {
-                if (audioElement) {
-                    var playPromise = audioElement.play();
-                    if (playPromise !== undefined) {
-                        playPromise.then(_ => {
-                            console.log(`${audioElement.id} playback started.`);
-                        })
-                        .catch(error => {
-                            console.error(`Autoplay was prevented for ${audioElement.id}:`, error);
-                        });
-                    }
                 }
             }
-            // Handle Word Audio Autoplay
-            var wordAudio = document.getElementById('word-audio');
-            handleAudioAutoplay(wordAudio);
-    
-            // Handle Feedback Audio Autoplay
-            var feedbackAudio = document.getElementById('feedback-audio');
-            handleAudioAutoplay(feedbackAudio);
-        });
-    </script>
+        }
+        // Handle Word Audio Autoplay
+        var wordAudio = document.getElementById('word-audio');
+        handleAudioAutoplay(wordAudio);
+
+        // Handle Feedback Audio Autoplay
+        var feedbackAudio = document.getElementById('feedback-audio');
+        handleAudioAutoplay(feedbackAudio);
+    });
+</script>
 </body>
 </html>

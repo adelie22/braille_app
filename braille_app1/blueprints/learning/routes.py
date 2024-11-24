@@ -46,15 +46,25 @@ def index():
         g.keyboard.set_buffered_mode(True)
         logging.debug("Buffered mode set to True for learning index GET request.")
 
-        # Select or retrieve the current word
+        # Check if there's a current word in the session
         if 'current_word' in session and session['current_word']:
+            # Use the existing word
             target_word = session['current_word']
             word_entry = EnGrade1.query.filter_by(word=target_word).first()
+            if not word_entry:
+                # Word not found in DB, select a new word
+                word_entry = EnGrade1.query.order_by(db.func.rand()).first()
+                if word_entry:
+                    session['current_word'] = word_entry.word.lower()
+                else:
+                    flash("No words available in the database.", "error")
+                    logging.warning("No words found in the database.")
+                    return render_template('learning/index.html')
         else:
-            word_entry = EnGrade1.query.order_by(db.func.random()).first()
+            # Select a new word from the DB
+            word_entry = EnGrade1.query.order_by(db.func.rand()).first()
             if word_entry:
                 session['current_word'] = word_entry.word.lower()
-                target_word = word_entry.word.lower()
             else:
                 flash("No words available in the database.", "error")
                 logging.warning("No words found in the database.")
@@ -66,7 +76,7 @@ def index():
         return render_template('learning/index.html', target_word=word_entry.word, audio_url=audio_url)
 
     elif request.method == 'POST':
-        # Consume all signals from the queue
+        # Consume signals from the queue
         control_signal_item = None
         braille_input_item = None
 
@@ -76,6 +86,7 @@ def index():
                 break
             if signal.get('type') == 'control' and signal.get('data') == 'Enter':
                 control_signal_item = signal
+                logging.debug("Enter signal detected during POST request.")
             elif signal.get('type') == 'braille_input':
                 braille_input_item = signal
 
@@ -116,6 +127,8 @@ def index():
                                 session['current_word'] = new_word_entry.word.lower()
                                 audio_url = url_for('learning.audio', word_id=new_word_entry.id)
                                 logging.debug(f"Next word selected: {new_word_entry.word} with ID: {new_word_entry.id}")
+                                # Clear the display buffer
+                                g.keyboard.clear_display_buffer()
                                 return render_template(
                                     'learning/index.html',
                                     target_word=new_word_entry.word,
@@ -125,6 +138,8 @@ def index():
                             else:
                                 flash("No more words available in the database.", "error")
                                 logging.warning("No more words available after correct input.")
+                                # Clear the display buffer
+                                g.keyboard.clear_display_buffer()
                                 return render_template('learning/index.html')
                         else:
                             # Input is incorrect
@@ -135,6 +150,9 @@ def index():
                             # Generate feedback audio saying "Wrong"
                             feedback_text = "Wrong."
                             generate_feedback_audio(feedback_text, 'feedback.mp3')
+
+                            # Clear the display buffer
+                            g.keyboard.clear_display_buffer()
 
                             # Render the template with the same target word and feedback audio
                             word_entry = EnGrade1.query.filter_by(word=target_word).first()

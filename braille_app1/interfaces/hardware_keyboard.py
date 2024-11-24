@@ -1,4 +1,5 @@
 import threading
+from collections import deque
 import queue
 import logging
 import serial
@@ -12,12 +13,24 @@ logging.basicConfig(
     ]
 )
 
-class HardwareBrailleKeyboard:
+class SingletonMeta(type):
+    _instances = {}
+    _lock: threading.Lock = threading.Lock()  # Ensures thread-safe singleton
+
+    def __call__(cls, *args, **kwargs):
+        with cls._lock:
+            if cls not in cls._instances:
+                instance = super().__call__(*args, **kwargs)
+                cls._instances[cls] = instance
+        return cls._instances[cls]
+
+class HardwareBrailleKeyboard(metaclass=SingletonMeta):
     def __init__(self, port, baudrate=9600, timeout=5):
-        self.input_buffer = []  # List to store Braille binary strings until Enter is pressed
-        self.queue = queue.Queue()  # Queue to pass final inputs and control signals to the application
-        self.buffered_mode = False  # Initialize buffered_mode
-        self.lock = threading.Lock()  
+        self.input_buffer = deque(maxlen=100)        # Bounded buffer for processing
+        self.display_buffer = deque(maxlen=100)      # Bounded buffer for display
+        self.queue = queue.Queue()
+        self.buffered_mode = False
+        self.lock = threading.Lock()
         
         try:
             self.serial_port = serial.Serial(port, baudrate, timeout=timeout)
@@ -41,11 +54,12 @@ class HardwareBrailleKeyboard:
                         logging.debug(f"Received serial line: {line}")
 
                         # Process Braille signals
-                        if line.startswith("Braille Signal (6-bit): "):
+                        if self.buffered_mode and line.startswith("Braille Signal (6-bit): "):
                             binary_str = line.replace("Braille Signal (6-bit): ", "")
                             if len(binary_str) == 6 and all(c in '01' for c in binary_str):
                                 self.input_buffer.append(binary_str)
-                                logging.info(f"Buffered Input Updated: {self.input_buffer}")
+                                self.display_buffer.append(binary_str)
+                                logging.info(f"Buffered Input Updated: {list(self.input_buffer)}")
                         # Handle Control Signals
                         elif line.startswith("Control Signal: "):
                             control_signal = line.replace("Control Signal: ", "")
@@ -56,7 +70,7 @@ class HardwareBrailleKeyboard:
                                     # Put the Braille input first
                                     self.queue.put({
                                         'type': 'braille_input',
-                                        'data': self.input_buffer.copy()
+                                        'data': list(self.input_buffer)  # Convert deque to list
                                     })
                                     self.input_buffer.clear()
                                 # Then put the Enter control signal
@@ -71,7 +85,8 @@ class HardwareBrailleKeyboard:
                                 })
             except serial.SerialException as e:
                 logging.error(f"Serial exception: {e}")
-                self.serial_port.close()
+                if self.serial_port:
+                    self.serial_port.close()
                 self.serial_port = None
             except Exception as e:
                 logging.error(f"Unexpected error in serial read thread: {e}")
@@ -88,26 +103,12 @@ class HardwareBrailleKeyboard:
             return input_signal
         return None
 
-    def send_feedback(self, message):
-        """
-        Send feedback to the Braille keyboard.
-        """
-        if not self.serial_port or not self.serial_port.is_open:
-            logging.error("Serial port not available. Cannot send feedback.")
-            return
-
-        try:
-            self.serial_port.write(f"{message}\n".encode('utf-8'))
-            logging.info(f"Sent feedback to hardware: {message}")
-        except serial.SerialException as e:
-            logging.error(f"Failed to send feedback to Arduino: {e}")
-            
     def get_current_input_buffer(self):
         """
-        Return the current input buffer without consuming it.
+        Return the current display buffer without consuming it.
         """
         with self.lock:
-            return self.input_buffer.copy()
+            return list(self.display_buffer)  # Convert deque to list for safe access
 
     def set_buffered_mode(self, buffered):
         """
@@ -115,11 +116,21 @@ class HardwareBrailleKeyboard:
         """
         self.buffered_mode = buffered
         if not buffered:
-            self.input_buffer.clear()  # Clear the buffer when disabling buffered mode
-            logging.info("Buffered mode disabled. Input buffer cleared.")
+            with self.lock:
+                self.input_buffer.clear()        # Clear the processing buffer
+                self.display_buffer.clear()      # Clear the display buffer
+            logging.info("Buffered mode disabled. Input buffer and display buffer cleared.")
         else:
             logging.info("Buffered mode enabled.")
-            
+
+    def clear_display_buffer(self):
+        """
+        Clear the display buffer. Call this after processing an input.
+        """
+        with self.lock:
+            self.display_buffer.clear()
+            logging.debug("Display buffer cleared.")
+
     def peek_control_signal(self):
         """
         Peek at the next control signal without removing it from the queue.
@@ -127,23 +138,5 @@ class HardwareBrailleKeyboard:
         with self.queue.mutex:
             for item in list(self.queue.queue):
                 if item.get('type') == 'control':
-                    return item['data']
+                    return item.get('data')
         return None
-
-    def get_braille_input(self):
-        """
-        Get the Braille input from the queue.
-        """
-        braille_inputs = []
-        while not self.queue.empty():
-            item = self.queue.get()
-            if item.get('type') == 'braille_input':
-                braille_inputs.extend(item['data'])
-            elif item.get('type') == 'control':
-                if item['data'] == 'Enter':
-                    # Stop reading inputs when Enter is encountered
-                    break
-            else:
-                # If other types, ignore or handle accordingly
-                pass
-        return braille_inputs
