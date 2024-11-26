@@ -9,5 +9,5 @@ class Config:
     USE_MOCK_KEYBOARD = False  # Set to False when using the hardware keyboard
     
     # Hardware Keyboard Configuration
-    SERIAL_PORT = '/dev/ttyACM1'      # Replace with your Arduino's serial port (e.g., '/dev/ttyUSB0' on Linux)
+    SERIAL_PORT = '/dev/ttyACM0'      # Replace with your Arduino's serial port (e.g., '/dev/ttyUSB0' on Linux)
     BAUD_RATE = 9600          # Must match Arduino's Serial.begin rate

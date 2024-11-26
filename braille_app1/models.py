@@ -18,4 +18,4 @@ class DiaryEntry(db.Model):
     content = db.Column(db.Text, nullable=False)
 
     def __repr__(self):
-        return f"<DiaryEntry id={self.id} - entry_date={self.entry_date}>"
+        return f"<DiaryEntry id={self.id} - date={self.date}>"

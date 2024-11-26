@@ -217,7 +217,7 @@
 
         // '뒤로가기' button click handler
         backButton.addEventListener('click', () => {
-            window.location.href = 'https://www.google.com/'; // Change to desired URL or implement desired functionality
+            window.location.href = '/'; // Change to desired URL or implement desired functionality
         });
 
         // Function to update navigableItems and diaryEntries
@@ -241,6 +241,9 @@
 
             // Register navigation event
             document.addEventListener('keydown', handleNavigation);
+
+            // Start polling for hardware events every 500ms
+            setInterval(fetchHardwareEvents, 500);
         });
 
         // Create button click handler
@@ -264,7 +267,7 @@
                 const words = newContentField.value.trim().split(' ');
                 const lastWord = words[words.length - 1];
                 speakMessage(lastWord);
-            } else if (e.ctrlKey && e.key === 'Enter') {
+            } else if (e.key === 'Enter' && e.ctrlKey) {
                 e.preventDefault(); // Prevent default action
                 openSavePopup();
             }
@@ -281,7 +284,7 @@
 
         // Handle cursor movement in the input field for speech output
         function handleCursorMovement(e) {
-            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'Home' || e.key === 'End') {
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
                 setTimeout(() => {
                     let cursorPosition = newContentField.selectionStart;
                     let text = newContentField.value;
@@ -325,7 +328,7 @@
             const savePopupButtons = document.querySelectorAll('#save-popup .popup-button');
             let savePopupIndex = Array.from(savePopupButtons).findIndex(button => button.classList.contains('highlight'));
 
-            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            if (['ArrowRight', 'ArrowLeft'].includes(e.key)) {
                 savePopupButtons[savePopupIndex].classList.remove('highlight');
                 if (e.key === 'ArrowRight') {
                     savePopupIndex = (savePopupIndex + 1) % savePopupButtons.length;
@@ -415,7 +418,7 @@
                     window.location.href = `/diary/content/${selectedId}`;
                 }
                 return;
-            } else if (e.key === 'Backspace' && navigableItems[currentIndex] !== createButton && e.ctrlKey) {
+            } else if (e.key === 'Backspace' && e.ctrlKey && navigableItems[currentIndex] !== createButton) {
                 openPopup();
                 return;
             }
@@ -430,6 +433,60 @@
                 speakMessage('뒤로가기 버튼');
             } else {
                 speakDate(navigableItems[currentIndex]);
+            }
+        }
+
+        // Function to move highlight up (called by polling)
+        function moveHighlightUp() {
+            if (currentIndex > 0) {
+                navigableItems[currentIndex].classList.remove('highlight');
+                currentIndex--;
+                navigableItems[currentIndex].classList.add('highlight');
+                navigableItems[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (navigableItems[currentIndex] === createButton) {
+                    speakMessage('작성 버튼');
+                } else if (navigableItems[currentIndex] === backButton) {
+                    speakMessage('뒤로가기 버튼');
+                } else {
+                    speakDate(navigableItems[currentIndex]);
+                }
+            }
+        }
+
+        // Function to move highlight down (called by polling)
+        function moveHighlightDown() {
+            if (currentIndex < navigableItems.length - 1) {
+                navigableItems[currentIndex].classList.remove('highlight');
+                currentIndex++;
+                navigableItems[currentIndex].classList.add('highlight');
+                navigableItems[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (navigableItems[currentIndex] === createButton) {
+                    speakMessage('작성 버튼');
+                } else if (navigableItems[currentIndex] === backButton) {
+                    speakMessage('뒤로가기 버튼');
+                } else {
+                    speakDate(navigableItems[currentIndex]);
+                }
+            }
+        }
+
+        // Function to handle 'Enter' action from hardware
+        function handleEnterAction() {
+            if (navigableItems[currentIndex] === createButton) {
+                createButton.click();
+            } else if (navigableItems[currentIndex] === backButton) {
+                backButton.click();
+            } else {
+                const selectedItem = navigableItems[currentIndex];
+                const selectedId = selectedItem.getAttribute('data-id');
+                window.location.href = `/diary/content/${selectedId}`;
+            }
+        }
+
+        // Function to handle 'Backspace' action from hardware
+        function handleBackspaceAction() {
+            if (navigableItems[currentIndex] !== createButton) {
+                openPopup();
             }
         }
 
@@ -462,7 +519,7 @@
             const popupButtons = document.querySelectorAll('#popup .popup-button');
             let popupIndex = Array.from(popupButtons).findIndex(button => button.classList.contains('highlight'));
 
-            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            if (['ArrowRight', 'ArrowLeft'].includes(e.key)) {
                 popupButtons[popupIndex].classList.remove('highlight');
                 if (e.key === 'ArrowRight') {
                     popupIndex = (popupIndex + 1) % popupButtons.length;
@@ -575,6 +632,44 @@
                 utterance.lang = 'ko-KR';
                 window.speechSynthesis.speak(utterance);
             }, 100);
+        }
+
+        // Function to fetch hardware events from the server
+        function fetchHardwareEvents() {
+            fetch('/hardware_events')
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        data.forEach(event => {
+                            handleHardwareEvent(event);
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Error fetching hardware events:', error);
+                });
+        }
+
+        // Function to handle individual hardware events
+        function handleHardwareEvent(event) {
+            if (event.type === 'control') {
+                const action = event.data;
+                console.log('Handling control action:', action);
+                if (action === 'ArrowUp') {
+                    moveHighlightUp();
+                } else if (action === 'ArrowDown') {
+                    moveHighlightDown();
+                } else if (action === 'Enter') {
+                    handleEnterAction();
+                } else if (action === 'Backspace') {
+                    handleBackspaceAction();
+                }
+                // Handle other control actions if needed
+            } else if (event.type === 'braille_input') {
+                // Handle braille input if needed
+                console.log('Received braille input:', event.data);
+                // Implement functionality based on braille input
+            }
         }
     </script>
 

@@ -19,7 +19,7 @@ tts_client = texttospeech.TextToSpeechClient()
 
 @diary_bp.route('/', methods=['GET'])
 def list_entries():
-    """
+    """ 
     List all diary entries.
     """
     entries = DiaryEntry.query.order_by(DiaryEntry.date.desc()).all()  # Updated field name

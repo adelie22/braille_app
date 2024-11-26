@@ -60,6 +60,17 @@
         audio {
             margin-top: 20px;
         }
+        input.braille-characters {
+            font-family: 'SimBraille', sans-serif;
+            background-color: #e6e6e6;
+            padding: 10px;
+            border-radius: 8px;
+            display: inline-block;
+            border: 1px solid #ccc;
+            width: 100%;
+            max-width: 400px;
+            font-size: 1.2em;
+        }
     </style>
 </head>
 <body>
@@ -84,12 +95,12 @@
             </div>
         {% endif %}
         
+
         <!-- Display User's Input -->
         <div class="input-display">
             <strong>Your Input:</strong>
-            <span id="user-input" class="braille-characters"></span>
+            <input type="text" id="user-input" class="braille-characters" readonly/>
         </div>
-        
         <!-- Instruction -->
         <p>Translate the braille input to match the target word.</p>
 
@@ -121,32 +132,8 @@
 
                     // Check if inputBuffer is different from lastDisplayBuffer
                     if (JSON.stringify(inputBuffer) !== JSON.stringify(lastDisplayBuffer)) {
-                        lastDisplayBuffer = inputBuffer;
-                        // Process inputBuffer to display the Braille characters
-                        if (inputBuffer && inputBuffer.length > 0) {
-                            const brailleChars = inputBuffer.map(binaryStr => {
-                                let brailleValue = 0;
-                                for (let i = 0; i < 6; i++) {
-                                    const bit = binaryStr[5 - i];  // Reverse order of bits
-                                    if (bit === '1') {
-                                        brailleValue |= (1 << i);
-                                    }
-                                }
-                                return String.fromCharCode(0x2800 + brailleValue);
-                            }).join('');
-                            // Update the display
-                            const userInputDisplay = document.getElementById('user-input');
-                            if (userInputDisplay) {
-                                userInputDisplay.textContent = brailleChars;
-                            }
-                        } else {
-                            // Do not clear the display unless it's intended (e.g., after processing)
-                            // Remove the following lines to prevent unintended clearing:
-                            // const userInputDisplay = document.getElementById('user-input');
-                            // if (userInputDisplay) {
-                            //     userInputDisplay.textContent = '';
-                            // }
-                        }
+                        lastDisplayBuffer = inputBuffer.slice(); // Create a copy
+                        updateUserInputDisplay(lastDisplayBuffer);
                     }
 
                     // Handle control signals
@@ -166,16 +153,71 @@
                         }
                         lastDisplayBuffer = []; // Reset the lastDisplayBuffer
                     } else if (controlSignal === 'Back') {
-                        // Handle the Back control signal if necessary
+                        // Handle the Back control signal
                         console.log('Back control signal received.');
+                        if (lastDisplayBuffer.length > 0) {
+                            lastDisplayBuffer.pop(); // Remove last item
+                            updateUserInputDisplay(lastDisplayBuffer);
+                        }
+                    
+                        // Submit a hidden form to trigger the POST method
+                        var form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = '/learning/';
+                        document.body.appendChild(form);
+                        form.submit();
                     }
-                    // Handle other control signals if necessary
-                })
-                .catch(error => {
-                    console.error('Error fetching input buffer:', error);
-                });
-        }
+                })}
+        /*function updateUserInputDisplay(inputBuffer) {
+            // Process inputBuffer to display the Braille characters
+            if (inputBuffer && inputBuffer.length > 0) {
+                const brailleChars = inputBuffer.map(binaryStr => {
+                    let brailleValue = 0;
+                    for (let i = 0; i < 6; i++) {
+                        const bit = binaryStr[5 - i];  // Reverse order of bits
+                        if (bit === '1') {
+                            brailleValue |= (1 << i);
+                        }
+                    }
+                    return String.fromCharCode(0x2800 + brailleValue);
+                }).join('');
+                // Update the display
+                const userInputDisplay = document.getElementById('user-input');
+                if (userInputDisplay) {
+                    userInputDisplay.textContent = brailleChars;
+                }
+            } else {
+                // Clear the display
+                const userInputDisplay = document.getElementById('user-input');
+                if (userInputDisplay) {
+                    userInputDisplay.textContent = '';
+                }
+            }
+        } */
 
+        function updateUserInputDisplay(inputBuffer) {
+            // Process inputBuffer to display the Braille characters
+            const userInputDisplay = document.getElementById('user-input');
+            if (userInputDisplay) {
+                if (inputBuffer && inputBuffer.length > 0) {
+                    const brailleChars = inputBuffer.map(binaryStr => {
+                        let brailleValue = 0;
+                        for (let i = 0; i < 6; i++) {
+                            const bit = binaryStr[5 - i];  // Reverse order of bits
+                            if (bit === '1') {
+                                brailleValue |= (1 << i);
+                            }
+                        }
+                        return String.fromCharCode(0x2800 + brailleValue);
+                    }).join('');
+                    // Update the display
+                    userInputDisplay.value = brailleChars;
+                } else {
+                    // Clear the display
+                    userInputDisplay.value = '';
+                }
+            }
+        }
         // Periodically fetch the input buffer
         setInterval(fetchInputBuffer, 1000); // Fetch every 0.5 second
 
