@@ -1,11 +1,13 @@
 # app.py
 
-from flask import Flask, g
+from flask import Flask, g, render_template, jsonify, request
 from config import Config
 from extensions import db
 from interfaces.mock_keyboard import MockBrailleKeyboard
 from interfaces.hardware_keyboard import HardwareBrailleKeyboard
 import logging
+from word_chain_ko.api import word_chain_api  
+from word_chain_en.api import word_chain_en_api 
 
 def create_app():
     app = Flask(__name__)
@@ -50,7 +52,24 @@ def create_app():
     @app.route('/')
     def home():
         return "Welcome to the Braille App"
-    
+    app.register_blueprint(word_chain_api)
+    app.register_blueprint(word_chain_en_api)
+    @app.route('/')
+    @app.route('/word_chain_menu')
+    def menu():
+        return render_template('word_chain_menu.html')  # Render templates/menu.html
+
+    # Route for rendering the Korean word chain game page
+    @app.route('/word_chain_ko')
+    def word_chain_ko():
+        return render_template('word_chain_ko.html')  # Render templates/word_chain_ko.html
+
+    # Route for rendering the English word chain game page
+    @app.route('/word_chain_en')
+    def word_chain_en():
+        g.keyboard.set_buffered_mode(True)
+        return render_template('word_chain_en.html')
+
     return app
 
 if __name__ == '__main__':

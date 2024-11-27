@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한국어 끝말잇기</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        input[type="text"] {
+            width: 60%;
+            padding: 10px;
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #000000;
+            color: white;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #000000;
+        }
+        /* 커서 위치할 때 색깔변화 */
+
+        .selected {
+            background-color: rgb(255, 255, 178) !important;
+            color: black !important;
+        }
+
+        #result-ko {
+            margin-top: 20px;
+            font-size: 18px;
+            color: green;
+        }
+
+        #history-ko {
+            margin-top: 20px;
+            list-style-type: none;
+            padding: 0;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: left;
+        }
+
+        #history-ko li {
+            padding: 5px 0;
+            font-size: 16px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        #history-ko li:nth-child(even) {
+            background-color: #e9ecef;
+        }
+
+        /* 추가된 요소 스타일 */
+        #attempts-ko,
+        #exchange-ko {
+            margin-top: 10px;
+            font-size: 23px;
+            color: #555;
+        }
+
+        #exchange-ko {
+            font-weight: bold;
+        }
+
+        /* 팝업 창 스타일 */
+        #popup-ko {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            border: 2px solid #ddd;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            z-index: 1000;
+        }
+
+        #popup-ko p {
+            margin-bottom: 20px;
+        }
+
+        .popup-button {
+            background-color: #f4f4f4;
+            color: #000;
+            border: 2px solid #000;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .popup-button:hover {
+            background-color: #ddd;
+        }
+
+        .popup-button.selected {
+            background-color: yellow !important;
+            color: black !important;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>한국어 끝말잇기</h1>
+    <input type="text" id="user-word-ko" placeholder="단어를 입력하세요" tabindex="0" aria-label="단어 입력창">
+    <button id="back-to-menu-ko" tabindex="1" aria-label="메뉴로 돌아가기 버튼">메뉴로 돌아가기</button>
+    <p id="result-ko" aria-live="polite"></p>
+    <ul id="history-ko"></ul>
+
+    <!-- 추가된 요소: 틀린 횟수, 주고받은 횟수, 교환 내용 -->
+    <p id="attempts-ko">틀린 시도: 0 | 총 교환 횟수: 0</p>
+    <p id="exchange-ko" style="font-size: 5rem; transition: transform 0.3s ease-out, opacity 0.3s ease-out;"></p>
+    <!--여기 font-size 를 ~rem으로 조정해서 주고받는 단어 글자크기 조정-->
+
+    <!-- 팝업 창 (단어 제출 오류 시) -->
+    <div id="popup-ko">
+        <p id="popup-message-ko">오류가 발생했습니다. 다시 시도하시겠습니까?</p>
+        <button class="popup-button" id="retry-button-ko" tabindex="2">재시도</button>
+        <button class="popup-button" id="cancel-button-ko" tabindex="3">취소</button>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/word_chain_ko.js') }}"></script>
+</body>
+
+</html>
