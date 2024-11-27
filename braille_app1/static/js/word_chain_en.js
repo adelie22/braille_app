@@ -108,11 +108,46 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
 
                 // If 'Enter' signal is detected, submit the word
-                if (controlSignal === 'Enter') {
-                    submitBrailleWord();
+                if (controlSignal) {
+                    handleControlSignal(controlSignal);
                 }
             })
             .catch(error => console.error('Error fetching Braille input:', error));
+    }
+        /**
+     * Handles various control signals received from the Braille keyboard.
+     *  {string} signal - The control signal to handle.
+     **/
+    function handleControlSignal(signal) {
+        switch (signal) {
+            case 'Enter':
+                submitBrailleWord();
+                break;
+            case 'Left':
+                navigateMenu('left');
+                break;
+            case 'Right':
+                navigateMenu('right');
+                break;
+            case 'Ctrl+Backspace':
+                quitGame();
+                break;
+            case 'Back':
+                deleteLastCharacter();
+                break;
+            default:
+                console.warn(`Unhandled control signal: ${signal}`);
+        }
+    }
+
+    /**
+     * Deletes the last character from the translated word input field.
+     */
+    function deleteLastCharacter() {
+        const translatedWordInput = document.getElementById('translated-word-en');
+        let currentValue = translatedWordInput.value;
+        translatedWordInput.value = currentValue.slice(0, -1);
+        speakMessage('Character deleted.');
     }
 
     // Fetch translated text from backend
@@ -149,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
             })
                 .then(response => response.json())
                 .then(data => {
-                    // Clear the translated word input field
+                    // Clear the translated word input field after submission
                     document.getElementById('translated-word-en').value = '';
                     document.getElementById('translated-word-en').focus();
 
@@ -180,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             const computerWord = data.computer_word;
                             lastExchange.computer = computerWord;
                             updateExchangeDisplay();
-                            speakMessage(`Computer entered: ${computerWord}`);
+                            speakMessage(`Next word: ${computerWord}`);
                             totalExchanges += 1;
                             updateAttemptsDisplay();
                         }

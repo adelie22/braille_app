@@ -19,7 +19,11 @@ def submit_braille_word():
     Translates Braille inputs and submits the word for validation.
     """
     input_buffer = g.keyboard.get_current_input_buffer()
-    control_signal = g.keyboard.peek_control_signal()
+    input_signal = g.keyboard.read_input()  # Retrieve and remove the next signal
+
+    control_signal = None
+    if input_signal and input_signal.get('type') == 'control':
+        control_signal = input_signal.get('data')
 
     logging.debug(f"Submit Braille Word - Input Buffer: {input_buffer}, Control Signal: {control_signal}")
 
@@ -60,7 +64,6 @@ def submit_braille_word():
     else:
         logging.warning("Computer cannot generate a word. Game over.")
         return jsonify({"message": "Valid word", "history": history, "computer_word": None, "game_over": True}), 200
-    
     
 @word_chain_en_api.route('/word_chain_en/translate_braille', methods=['POST'])
 def translate_braille():
