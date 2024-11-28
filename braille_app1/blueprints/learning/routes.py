@@ -21,18 +21,22 @@ tts_client = texttospeech.TextToSpeechClient()
 @learning_bp.route('/get_current_input_buffer')
 def get_current_input_buffer():
     """
-    Returns the current input buffer and any control signals from the hardware keyboard.
+    Returns the current input buffer and cursor position.
     """
     input_buffer = g.keyboard.get_current_input_buffer()
-
-    # Peek at a control signal without consuming it
+    cursor_position = g.keyboard.get_cursor_position()
     control_signal = g.keyboard.peek_control_signal()
+    
     if control_signal:
         logging.debug(f"Control signal included in response: {control_signal}")
     else:
         logging.debug("No control signal available.")
 
-    return jsonify({'input_buffer': input_buffer, 'control_signal': control_signal})
+    return jsonify({
+        'input_buffer': input_buffer, 
+        'cursor_position': cursor_position,
+        'control_signal': control_signal
+    })
 
 @learning_bp.route('/', methods=['GET', 'POST'])
 def index():
@@ -53,7 +57,7 @@ def index():
             word_entry = EnGrade1.query.filter_by(word=target_word).first()
             if not word_entry:
                 # Word not found in DB, select a new word
-                word_entry = EnGrade1.query.order_by(db.func.random()).first()
+                word_entry = EnGrade1.query.order_by(db.func.rand()).first()
                 if word_entry:
                     session['current_word'] = word_entry.word.lower()
                 else:
@@ -62,7 +66,7 @@ def index():
                     return render_template('learning/index.html')
         else:
             # Select a new word from the DB
-            word_entry = EnGrade1.query.order_by(db.func.random()).first()
+            word_entry = EnGrade1.query.order_by(db.func.rand()).first()
             if word_entry:
                 session['current_word'] = word_entry.word.lower()
             else:
@@ -70,7 +74,11 @@ def index():
                 logging.warning("No words found in the database.")
                 return render_template('learning/index.html')
 
-        session['user_input'] = ''  # Clear any previous user input
+        # # Clear any previous user input in HardwareBrailleKeyboard
+        # with g.keyboard.lock:
+        #     g.keyboard.input_buffer = []
+        #     g.keyboard.cursor_position = 0
+
         audio_url = url_for('learning.audio', word_id=word_entry.id)
         logging.debug(f"Selected word: {word_entry.word} with ID: {word_entry.id}")
         return render_template('learning/index.html', target_word=word_entry.word, audio_url=audio_url)
@@ -89,18 +97,22 @@ def index():
         if control_signal_item:
             control_signal = control_signal_item.get('data')
             if control_signal == 'Enter':
-                # Handle 'Enter' control signal
                 return handle_enter_signal()
             elif control_signal == 'Back':
                 return handle_back_signal()
             elif control_signal == 'Ctrl+Enter':
                 return handle_ctrl_enter_signal()
-            elif control_signal == 'Ctrl + Left':
-                pass
-                # Handle 'Ctrl + Left' control signal
-                #return handle_ctrl_left_signal_learning()
-            elif control_signal == 'Ctrl':
-                pass
+            elif control_signal == 'Ctrl+Backspace':
+                return handle_ctrl_backspace_signal()
+            elif control_signal == 'Left':
+                return handle_left_signal()
+            elif control_signal == 'Right':
+                return handle_right_signal()
+            elif control_signal in ['Ctrl + Left', 'Ctrl + Right', 'Ctrl', 'Up', 'Down', 'Space', 'Ctrl + Up', 'Ctrl + Down', 'Ctrl + Space']:
+                # Handle other Ctrl + directions if needed
+                logging.debug(f"Unhandled control signal: {control_signal}")
+                flash(f"Unhandled control signal: {control_signal}", "info")
+                return redirect(url_for('learning.index'))
             else:
                 # Handle other control signals if necessary
                 logging.debug(f"Unhandled control signal: {control_signal}")
@@ -172,7 +184,6 @@ def audio(word_id):
         download_name=f"{sanitized_word}.mp3"
     )
 
-
 @learning_bp.route('/instructions_audio/<filename>')
 def instructions_audio(filename):
     """
@@ -215,15 +226,18 @@ def message_audio(filename):
         download_name=filename
     )
 
-#------------------------------------------함수--------------------------
+#------------------------------------------Functions--------------------------
+
 def handle_enter_signal():
     """
     Handles the 'Enter' control signal by processing the input buffer.
     """
-    if g.keyboard.buffered_mode:
+    if g.keyboard.buffered_mode and g.keyboard.input_buffer:
         with g.keyboard.lock:
             input_buffer = list(g.keyboard.input_buffer)
-            g.keyboard.input_buffer.clear()
+            g.keyboard.input_buffer = []
+            g.keyboard.cursor_position = 0  # Reset cursor position
+
         if input_buffer:
             # Process the input_buffer as braille_input
             input_sequence = input_buffer
@@ -256,17 +270,14 @@ def handle_enter_signal():
                 # Correct input logic
                 flash("Correct!", "success")
                 logging.info("User entered the correct word.")
-                session['user_input'] = ''  # Clear user input
                 # Generate feedback audio
                 generate_feedback_audio("Correct! The next word is coming up.", 'feedback.mp3')
                 # Select the next word
-                new_word_entry = EnGrade1.query.order_by(db.func.random()).first()
+                new_word_entry = EnGrade1.query.order_by(db.func.rand()).first()
                 if new_word_entry:
                     session['current_word'] = new_word_entry.word.lower()
                     audio_url = url_for('learning.audio', word_id=new_word_entry.id)
                     logging.debug(f"Next word selected: {new_word_entry.word} with ID: {new_word_entry.id}")
-                    # Disable buffered mode temporarily if needed
-                    # g.keyboard.set_buffered_mode(False)
                     return render_template(
                         'learning/index.html',
                         target_word=new_word_entry.word,
@@ -281,11 +292,10 @@ def handle_enter_signal():
                 # Incorrect input logic
                 flash("Incorrect input.", "error")
                 logging.info(f"User entered incorrect word: {entered_word} (expected: {target_word})")
-                session['user_input'] = entered_word  # Store incorrect input for display
+                # Store incorrect input for display
 
                 # Generate feedback audio saying "Wrong"
-                feedback_text = "Wrong."
-                generate_feedback_audio(feedback_text, 'feedback.mp3')
+                generate_feedback_audio("Wrong.", 'feedback.mp3')
 
                 # Render the template with the same target word and feedback audio
                 word_entry = EnGrade1.query.filter_by(word=target_word).first()
@@ -299,28 +309,28 @@ def handle_enter_signal():
                     audio_url=audio_url,
                     feedback_audio_url=url_for('learning.message_audio', filename='feedback.mp3')
                 )
-        else:
-            logging.debug("Input buffer is empty upon 'Enter' signal.")
-            flash("No input detected.", "error")
-            return redirect(url_for('learning.index'))
     else:
-        logging.debug("Buffered mode is not enabled upon 'Enter' signal.")
-        flash("Buffered mode is not enabled.", "error")
+        logging.debug("Input buffer is empty or buffered mode is not enabled upon 'Enter' signal.")
+        flash("No input detected or buffered mode not enabled.", "error")
         return redirect(url_for('learning.index'))
 
 def handle_back_signal():
     """
-    Handles the 'Back' control signal by removing the last item from the input buffer.
+    Handles the 'Back' control signal by deleting the character at the current cursor position.
     """
-    with g.keyboard.lock:
-        if g.keyboard.input_buffer:
-            removed_item = g.keyboard.input_buffer.pop()
-            logging.debug(f"Removed last item from input buffer: {removed_item}")
-            flash("Last character removed.", "info")
-        else:
-            logging.debug("Input buffer is empty; nothing to remove.")
-            flash("No input to remove.", "info")
+    success = g.keyboard.delete_at_cursor()
+    if success:
+        flash("Character deleted.", "info")
+    else:
+        flash("Nothing to delete.", "info")
     return redirect(url_for('learning.index'))
+
+def handle_ctrl_backspace_signal():
+    """
+    Handles the 'Ctrl + Backspace' control signal by redirecting to the home menu.
+    """
+    logging.debug("Ctrl + Backspace signal detected. Redirecting to home menu.")
+    return redirect(url_for('home'))
 
 def handle_ctrl_enter_signal():
     """
@@ -348,7 +358,7 @@ def handle_ctrl_enter_signal():
             logging.info(f"Word '{target_word}' successfully stored in EnVoca.")
             
             # Generate feedback audio saying "Stored in your list"
-            generate_feedback_audio(f"'{target_word}' stored in list.", 'feedback.mp3')
+            generate_feedback_audio(f"'{target_word}' stored in your vocabulary list.", 'feedback.mp3')
             
             # Now, trigger the audio of the word itself
             word_entry = EnGrade1.query.filter_by(word=target_word).first()
@@ -361,7 +371,7 @@ def handle_ctrl_enter_signal():
                 logging.error(f"Word '{target_word}' not found for audio playback.")
                 return redirect(url_for('learning.index'))
 
-            # Generate feedback audio file (stored word message)
+            # Render the template with the stored word and feedback audio
             return render_template(
                 'learning/index.html',
                 target_word=target_word,
@@ -375,8 +385,29 @@ def handle_ctrl_enter_signal():
 
     return redirect(url_for('learning.index'))
 
+def handle_left_signal():
+    """
+    Handles the 'Left' control signal by moving the cursor one position to the left.
+    """
+    logging.debug("Handling 'Left' control signal.")
+    g.keyboard.move_cursor_left()
+    current_pos = g.keyboard.get_cursor_position()
+    current_buffer = g.keyboard.get_current_input_buffer()
+    logging.debug(f"Cursor position after 'Left': {current_pos}")
+    logging.debug(f"Current input buffer after 'Left': {current_buffer}")
+    return redirect(url_for('learning.index'))
 
-
+def handle_right_signal():
+    """
+    Handles the 'Right' control signal by moving the cursor one position to the right.
+    """
+    logging.debug("Handling 'Right' control signal.")
+    g.keyboard.move_cursor_right()
+    current_pos = g.keyboard.get_cursor_position()
+    current_buffer = g.keyboard.get_current_input_buffer()
+    logging.debug(f"Cursor position after 'Right': {current_pos}")
+    logging.debug(f"Current input buffer after 'Right': {current_buffer}")
+    return redirect(url_for('learning.index'))
 
 def generate_feedback_audio(text, filename):
     """
@@ -416,4 +447,3 @@ def generate_feedback_audio(text, filename):
             logging.debug(f'Feedback audio content written to {audio_path}')
     except Exception as e:
         logging.error(f"Error during TTS synthesis for feedback: {e}")
-
