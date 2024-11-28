@@ -99,7 +99,7 @@
         <!-- Display User's Input -->
         <div class="input-display">
             <strong>Your Input:</strong>
-            <input type="text" id="user-input" class="braille-characters" readonly/>
+            <input type="text" id="user-input" class="braille-characters" />
         </div>
         <!-- Instruction -->
         <p>Translate the braille input to match the target word.</p>
@@ -114,6 +114,7 @@
     </div>
     
     <!-- index.html (only the script section) -->
+
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -166,36 +167,30 @@
                         form.action = '/learning/';
                         document.body.appendChild(form);
                         form.submit();
-                    }
-                })}
-        /*function updateUserInputDisplay(inputBuffer) {
-            // Process inputBuffer to display the Braille characters
-            if (inputBuffer && inputBuffer.length > 0) {
-                const brailleChars = inputBuffer.map(binaryStr => {
-                    let brailleValue = 0;
-                    for (let i = 0; i < 6; i++) {
-                        const bit = binaryStr[5 - i];  // Reverse order of bits
-                        if (bit === '1') {
-                            brailleValue |= (1 << i);
-                        }
-                    }
-                    return String.fromCharCode(0x2800 + brailleValue);
-                }).join('');
-                // Update the display
-                const userInputDisplay = document.getElementById('user-input');
-                if (userInputDisplay) {
-                    userInputDisplay.textContent = brailleChars;
-                }
-            } else {
-                // Clear the display
-                const userInputDisplay = document.getElementById('user-input');
-                if (userInputDisplay) {
-                    userInputDisplay.textContent = '';
-                }
-            }
-        } */
+                    } else if (controlSignal === 'Ctrl+Enter') {
+                        // Handle the Ctrl+Enter control signal
+                        console.log('Ctrl+Enter control signal received.');
+                        
+                        // Submit a hidden form to trigger the POST method
+                        var form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = '/learning/';
+                        document.body.appendChild(form);
+                        form.submit();
+                    } else if (controlSignal === 'Ctrl') {
+                        console.log('Ctrl control signal received.');
 
-        function updateUserInputDisplay(inputBuffer) {
+                        // Submit a hidden form to trigger the POST method
+                        var form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = '/learning/';
+                        document.body.appendChild(form);
+                        form.submit();
+                    }
+
+                })}
+                
+            function updateUserInputDisplay(inputBuffer) {
             // Process inputBuffer to display the Braille characters
             const userInputDisplay = document.getElementById('user-input');
             if (userInputDisplay) {

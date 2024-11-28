@@ -3,7 +3,7 @@
 from . import learning_bp
 from flask import render_template, request, session, g, redirect, url_for, flash, send_file, jsonify
 from extensions import db
-from models import EnGrade1
+from models import EnVoca, EnGrade1
 import louis
 from google.cloud import texttospeech
 import os
@@ -76,9 +76,6 @@ def index():
         return render_template('learning/index.html', target_word=word_entry.word, audio_url=audio_url)
 
     elif request.method == 'POST':
-        queue_contents = g.keyboard.get_queue_contents()
-        logging.debug(f"Queue contents before processing POST request: {queue_contents}")
-        # Consume signals from the queue
         control_signal_item = None
 
         while True:
@@ -96,10 +93,14 @@ def index():
                 return handle_enter_signal()
             elif control_signal == 'Back':
                 return handle_back_signal()
+            elif control_signal == 'Ctrl+Enter':
+                return handle_ctrl_enter_signal()
             elif control_signal == 'Ctrl + Left':
                 pass
                 # Handle 'Ctrl + Left' control signal
                 #return handle_ctrl_left_signal_learning()
+            elif control_signal == 'Ctrl':
+                pass
             else:
                 # Handle other control signals if necessary
                 logging.debug(f"Unhandled control signal: {control_signal}")
@@ -171,6 +172,50 @@ def audio(word_id):
         download_name=f"{sanitized_word}.mp3"
     )
 
+
+@learning_bp.route('/instructions_audio/<filename>')
+def instructions_audio(filename):
+    """
+    Serves the instructions audio file.
+    """
+    blueprint_dir = os.path.dirname(__file__)
+    audio_dir = os.path.join(blueprint_dir, 'audio_files')
+    audio_path = os.path.join(audio_dir, filename)
+
+    if not os.path.exists(audio_path):
+        flash("Instructions audio not found.", "error")
+        logging.error(f"Instructions audio file '{filename}' not found.")
+        return redirect(url_for('learning.index'))
+
+    return send_file(
+        audio_path,
+        mimetype="audio/mpeg",
+        as_attachment=False,
+        download_name=filename
+    )
+
+@learning_bp.route('/message_audio/<filename>')
+def message_audio(filename):
+    """
+    Serves the message audio file (e.g., "Correct! The next word is...").
+    """
+    blueprint_dir = os.path.dirname(__file__)
+    audio_dir = os.path.join(blueprint_dir, 'audio_files')
+    audio_path = os.path.join(audio_dir, filename)
+
+    if not os.path.exists(audio_path):
+        flash("Message audio not found.", "error")
+        logging.error(f"Message audio file '{filename}' not found.")
+        return redirect(url_for('learning.index'))
+
+    return send_file(
+        audio_path,
+        mimetype="audio/mpeg",
+        as_attachment=False,
+        download_name=filename
+    )
+
+#------------------------------------------함수--------------------------
 def handle_enter_signal():
     """
     Handles the 'Enter' control signal by processing the input buffer.
@@ -277,26 +322,61 @@ def handle_back_signal():
             flash("No input to remove.", "info")
     return redirect(url_for('learning.index'))
 
-@learning_bp.route('/instructions_audio/<filename>')
-def instructions_audio(filename):
+def handle_ctrl_enter_signal():
     """
-    Serves the instructions audio file.
+    Handles the 'Ctrl+Enter' control signal by storing the current word into EnVoca
+    and triggering audio playback for the stored word.
     """
-    blueprint_dir = os.path.dirname(__file__)
-    audio_dir = os.path.join(blueprint_dir, 'audio_files')
-    audio_path = os.path.join(audio_dir, filename)
-
-    if not os.path.exists(audio_path):
-        flash("Instructions audio not found.", "error")
-        logging.error(f"Instructions audio file '{filename}' not found.")
+    target_word = session.get('current_word', None)
+    if not target_word:
+        flash("No target word to store.", "error")
+        logging.error("No target word found in session.")
         return redirect(url_for('learning.index'))
 
-    return send_file(
-        audio_path,
-        mimetype="audio/mpeg",
-        as_attachment=False,
-        download_name=filename
-    )
+    # Check if the word already exists in EnVoca to prevent duplicates
+    existing_entry = EnVoca.query.filter_by(word=target_word).first()
+    if existing_entry:
+        flash(f"'{target_word}' is already in your vocabulary list.", "info")
+        logging.info(f"Word '{target_word}' already exists in EnVoca.")
+    else:
+        try:
+            # Store the word in the EnVoca table
+            new_voca = EnVoca(word=target_word)
+            db.session.add(new_voca)
+            db.session.commit()
+            flash(f"'{target_word}' stored in your vocabulary list.", "success")
+            logging.info(f"Word '{target_word}' successfully stored in EnVoca.")
+            
+            # Generate feedback audio saying "Stored in your list"
+            generate_feedback_audio(f"'{target_word}' stored in list.", 'feedback.mp3')
+            
+            # Now, trigger the audio of the word itself
+            word_entry = EnGrade1.query.filter_by(word=target_word).first()
+            if word_entry:
+                # Generate or fetch the audio file for the word
+                audio_url = url_for('learning.audio', word_id=word_entry.id)
+                logging.debug(f"Word audio URL: {audio_url}")
+            else:
+                flash("Word not found for audio playback.", "error")
+                logging.error(f"Word '{target_word}' not found for audio playback.")
+                return redirect(url_for('learning.index'))
+
+            # Generate feedback audio file (stored word message)
+            return render_template(
+                'learning/index.html',
+                target_word=target_word,
+                audio_url=audio_url,  # Include the word's audio URL for autoplay
+                feedback_audio_url=url_for('learning.message_audio', filename='feedback.mp3')
+            )
+        except Exception as e:
+            db.session.rollback()
+            flash("Error storing the word in vocabulary list.", "error")
+            logging.error(f"Error storing '{target_word}' in EnVoca: {e}")
+
+    return redirect(url_for('learning.index'))
+
+
+
 
 def generate_feedback_audio(text, filename):
     """
@@ -336,25 +416,4 @@ def generate_feedback_audio(text, filename):
             logging.debug(f'Feedback audio content written to {audio_path}')
     except Exception as e:
         logging.error(f"Error during TTS synthesis for feedback: {e}")
-
-@learning_bp.route('/message_audio/<filename>')
-def message_audio(filename):
-    """
-    Serves the message audio file (e.g., "Correct! The next word is...").
-    """
-    blueprint_dir = os.path.dirname(__file__)
-    audio_dir = os.path.join(blueprint_dir, 'audio_files')
-    audio_path = os.path.join(audio_dir, filename)
-
-    if not os.path.exists(audio_path):
-        flash("Message audio not found.", "error")
-        logging.error(f"Message audio file '{filename}' not found.")
-        return redirect(url_for('learning.index'))
-
-    return send_file(
-        audio_path,
-        mimetype="audio/mpeg",
-        as_attachment=False,
-        download_name=filename
-    )
 

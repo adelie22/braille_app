@@ -1,7 +1,6 @@
 # hardware_keyboard.py
 
 import threading
-from collections import deque
 import queue
 import logging
 import serial
@@ -35,7 +34,7 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
     Singleton class to manage hardware Braille keyboard interactions.
     """
     def __init__(self, port, baudrate=9600, timeout=5):
-        self.input_buffer = deque(maxlen=100)        # Single buffer for processing and display
+        self.input_buffer = []       # Single buffer for processing and display
         self.queue = queue.Queue(maxsize=10)        # Limit queue size to prevent overflow
         self.buffered_mode = False
         self.lock = threading.Lock()
@@ -66,7 +65,7 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
                             binary_str = line.replace("Braille Signal (6-bit): ", "")
                             if len(binary_str) == 6 and all(c in '01' for c in binary_str):
                                 self.input_buffer.append(binary_str)
-                                logging.info(f"Buffered Input Updated: {list(self.input_buffer)}")
+                                logging.info(f"Buffered Input Updated: {self.input_buffer}")
                         
                         elif line.startswith("Control Signal: "):
                             control_signal = line.replace("Control Signal: ", "")
@@ -99,8 +98,8 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
         Return the current input buffer without consuming it.
         """
         with self.lock:
-            return list(self.input_buffer)  # Convert deque to list for safe access
-
+            return list(self.input_buffer)
+        
     def set_buffered_mode(self, buffered):
         """
         Set whether the keyboard should use buffered input mode.
@@ -134,10 +133,3 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
                 if item.get('type') == 'control':
                     return item.get('data')
         return None
-    
-    def get_queue_contents(self):
-        """
-        Returns a copy of the current queue contents in a thread-safe manner.
-        """
-        with self.lock:
-            return list(self.queue.queue)
