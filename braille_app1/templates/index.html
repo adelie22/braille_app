@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>홈 화면</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 100px;
+            background-color: #ffffff;
+        }
+
+        h1 {
+            color: #000;
+            font-size: 80px;   
+        }
+
+        h2 {
+            color: #000;
+            font-size: 40px;
+            margin-top: -5%;
+            font-weight: 500;
+        }
+
+        p {
+        font-size: 30px;          
+        color: #000;              
+        line-height: 1;         
+        margin: 30px 0;          
+    }
+
+        .hidden {
+            display: none;
+        }
+
+        /* 컨테이너에 Flexbox 적용하여 버튼을 수직으로 정렬 */
+        #language-selection {
+            display: flex;
+            flex-direction: column;
+            /* 수직 배열 */
+            align-items: center;
+            /* 중앙 정렬 */
+        }
+
+        button {
+            width: 220px;
+            /* 고정 너비 */
+            height: 90px;
+            /* 고정 높이 */
+            padding: 10px 20px;
+            /* 내부 여백 조정 */
+            font-size: 40px;
+            /* 동일한 폰트 크기 */
+            font-weight: 800;
+            /* 폰트 굵기 */
+            margin: 10px;
+            /* 버튼 간 간격 */
+            cursor: pointer;
+            border: 2px solid black;
+            /* 동일한 테두리 */
+            border-radius: 10px;
+            /* 동일한 둥근 모서리 */
+            background-color: #ffffff;
+            /* 버튼 배경색 */
+            color: rgb(0, 0, 0);
+            /* 버튼 텍스트 색상 */
+            transition: background-color 0.3s ease, color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+            outline: none;
+        }
+
+        .menu-button:hover,
+        .back-button:hover {
+            background-color: rgb(0, 0, 0);
+            color: rgb(255, 255, 255);
+        }
+
+        .selected {
+            background-color: rgb(0, 0, 0) !important;
+            color: rgb(255, 255, 255) !important;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>배울점</h1>
+        <h2>(점자 쓰기 학습 웹)</h2>
+        <button id="learning-btn" class="menu-button" tabindex="0">학습</button>
+        <button id="game-btn" class="menu-button" tabindex="1">끝말잇기</button>
+        <button id="diary-btn" class="menu-button" tabindex="2">다이어리</button>
+        <button id="manual-btn" class="menu-button" tabindex="3">사용법</button>
+    </header>
+
+    <main>
+        <div class="horizontal-line"></div>
+        <p>안녕하세요. No Name Required 입니다!</p>  
+        <p>&lt;배울점&gt;을 통해 점자 쓰기를 재미있게 학습하시길 바랍니다. ☺️</p>
+    </main>
+
+    <script>
+        let currentIndex = 0;
+        const menuButtons = document.querySelectorAll('.menu-button');
+        const totalMenus = menuButtons.length;
+
+        // 음성 출력 함수
+        function speakMessage(message) {
+            window.speechSynthesis.cancel(); // 기존 음성 중단
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(message);
+                utterance.lang = 'ko-KR';
+                window.speechSynthesis.speak(utterance);
+            }, 100); // 지연 시간 추가
+        }
+         // 페이지 초기화 시 음성 안내
+         function playWelcomeMessage() {
+        window.speechSynthesis.cancel(); // 기존 음성 중단
+        setTimeout(() => {
+            const utterance = new SpeechSynthesisUtterance("배울점 홈 화면입니다. 좌우 방향키로 실행할 메뉴를 고르세요. 엔터키를 누르면 선택됩니다.");
+            utterance.lang = 'ko-KR';
+            utterance.rate = 0.8; // 느린 속도
+            window.speechSynthesis.speak(utterance);
+        }, 100); // 지연 시간 추가
+    }
+        // 초기화 함수
+        function initializeMenu() {
+            menuButtons[currentIndex].classList.add('selected');
+            speakMessage(getButtonText(menuButtons[currentIndex]));
+        }
+
+        // 버튼 텍스트 가져오기
+        function getButtonText(button) {
+            return button.textContent.trim();
+        }
+
+        // 메뉴 간 이동 함수 (위, 아래로)
+        function navigateMenu(direction) {
+            // 기존 선택된 버튼 해제
+            menuButtons[currentIndex].classList.remove('selected');
+
+            // 현재 진행 중인 음성 중단
+            window.speechSynthesis.cancel();
+
+            // 인덱스 업데이트
+            if (direction === 'up') {
+                currentIndex = (currentIndex - 1 + totalMenus) % totalMenus;
+            } else if (direction === 'down') {
+                currentIndex = (currentIndex + 1) % totalMenus;
+            }
+
+            // 새로운 버튼에 선택 표시 및 음성 출력
+            const selectedButton = menuButtons[currentIndex];
+            selectedButton.classList.add('selected');
+            speakMessage(getButtonText(selectedButton));
+            selectedButton.focus();
+        }
+
+        // 키보드 이벤트 리스너 (위, 아래 방향키)
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowLeft') {
+                event.preventDefault();
+                navigateMenu('up');
+            } else if (event.key === 'ArrowRight') {
+                event.preventDefault();
+                navigateMenu('down');
+            } else if (event.key === 'Enter') {
+                // Enter 키로 버튼 클릭
+                menuButtons[currentIndex].click();
+            }
+        });
+
+        // 버튼 클릭 이벤트
+        menuButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const buttonId = button.id;
+                if (buttonId === 'learning-btn') {
+                    window.location.href = "/learning";
+                } else if (buttonId === 'game-btn') {
+                    window.location.href = "/game";
+                } else if (buttonId === 'diary-btn') {
+                    window.location.href = "/diary";
+                } else if (buttonId === 'manual-btn') {
+                    window.location.href = "/manual";
+                }
+            });
+        });
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            playWelcomeMessage(); // 페이지 로드 시 음성 안내 실행
+            initializeMenu();
+        });
+
+    </script>
+
+</body>
+</html>

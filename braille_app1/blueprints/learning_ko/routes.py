@@ -1,12 +1,13 @@
 # blueprints/learning/routes.py
 
-from . import learning_bp
+from . import learning_bp_ko
 from flask import (
     render_template, request, session, g, redirect, url_for,
     flash, send_file, jsonify, current_app
 )
+from BrailleToKorean import BrailleToKor
 from extensions import db
-from models import EnVoca, EnGrade1
+from models import EnVoca, KoGrade1
 import louis
 from google.cloud import texttospeech
 import os
@@ -19,6 +20,38 @@ logging.basicConfig(level=logging.DEBUG)
 # Path to your Braille translation table
 BRAILLE_TABLE = "/home/guru/liblouis-3.21.0/tables/en-us-g1.ctb"
 
+
+# 점자 번호 매핑 정의
+BRAILLE_MAPPING = {
+    'a': '1 for a',
+    'b': '1 2 for b',
+    'c': '1 4 for c',
+    'd': '1 4 5 for d',
+    'e': '1 5 for e',
+    'f': '1 2 4 for f',
+    'g': '1 2 4 5 for g',
+    'h': '1 2 5 for h',
+    'i': '2 4 for i',
+    'j': '2 4 5 for j',
+    'k': '1 3 for k',
+    'l': '1 2 3 for l',
+    'm': '1 3 4 for m',
+    'n': '1 3 4 5 for n',
+    'o': '1 3 5 for o',
+    'p': '1 2 3 4 for p',
+    'q': '1 2 3 4 5 for q',
+    'r': '1 2 3 5 for r',
+    's': '2 3 4 for s',
+    't': '2 3 4 5 for t',
+    'u': '1 3 6 for u',
+    'v': '1 2 3 6 for v',
+    'w': '2 4 5 6 for w',
+    'x': '1 3 4 6 for x',
+    'y': '1 3 4 5 6 for y',
+    'z': '1 3 5 6 for z',
+}
+
+
 # Initialize Google TTS client
 tts_client = texttospeech.TextToSpeechClient()
 
@@ -27,42 +60,6 @@ AUDIO_TYPES = {
     'word': 'words',
     'feedback': 'feedback',
 }
-
-def generate_braille_buttons_feedback(word):
-    """
-    Generate the Braille button combinations for each letter in the word.
-    Returns a formatted string such as "Press 1,3 for a, 2,5,6 for n, 2,3 for t"
-    """
-    braille_buttons_feedback = []
-    
-    for letter in word:
-        # Convert letter to Braille (using liblouis)
-        braille_char = louis.translateString(["braille-patterns.cti", BRAILLE_TABLE], letter)[0]
-        
-        # Convert Braille character to its numeric button representation
-        braille_button_combination = get_braille_buttons(braille_char)
-        braille_buttons_feedback.append(f"{braille_button_combination} for {letter}")
-    
-    return ", ".join(braille_buttons_feedback)
-
-
-def get_braille_buttons(braille_char):
-    """
-    Convert a Braille character to its corresponding button combination in numeric form.
-    """
-    # Braille character to button mapping (6 dots, represented by a 6-bit number)
-    # Braille characters are encoded in 6-bit, and each dot can be 1 (on) or 0 (off).
-    # Braille table for a character in standard dot order: 1, 2, 3, 4, 5, 6
-    braille_buttons = []
-    braille_value = ord(braille_char) - 0x2800  # Braille starts at 0x2800 (Unicode Braille block)
-    
-    # Get which dots are raised (bits 0-5 represent dots 1-6)
-    for i in range(6):
-        if braille_value & (1 << i):
-            braille_buttons.append(str(i + 1))  # Dot numbers are 1-indexed
-    
-    return ",".join(braille_buttons)
-
 
 def get_audio_path(text, audio_type='feedback'):
     """
@@ -125,7 +122,7 @@ def generate_feedback_audio(text, filename=None):
     feedback_audio_url = url_for('learning.message_audio', filename=os.path.basename(audio_path))
     return feedback_audio_url
 
-@learning_bp.route('/message_audio/<filename>')
+@learning_bp_ko.route('/message_audio/<filename>')
 def message_audio(filename):
     """
     Serves the message audio file (e.g., "Delete", "Left", "Right").
@@ -146,14 +143,14 @@ def message_audio(filename):
         download_name=filename
     )
 
-@learning_bp.route('/audio/<int:word_id>')
+@learning_bp_ko.route('/audio/<int:word_id>')
 def audio(word_id):
     """
     Generates and serves the audio file for the given word ID using Google TTS.
     Caches the audio to disk to avoid redundant API calls.
     """
     # Retrieve the word from the database
-    word_entry = EnGrade1.query.get(word_id)
+    word_entry =  KoGrade1.query.get(word_id)
     if not word_entry:
         flash("Word not found.", "error")
         logging.error(f"Word with ID {word_id} not found in the database.")
@@ -207,7 +204,7 @@ def audio(word_id):
         download_name=f"{sanitized_word}.mp3"
     )
 
-@learning_bp.route('/get_current_input_buffer')
+@learning_bp_ko.route('/get_current_input_buffer')
 def get_current_input_buffer():
     """
     Returns the current input buffer and cursor position.
@@ -227,7 +224,7 @@ def get_current_input_buffer():
         'control_signal': control_signal
     })
 
-@learning_bp.route('/', methods=['GET', 'POST'])
+@learning_bp_ko.route('/', methods=['GET', 'POST'])
 def index():
     """
     Handles the Learning section.
@@ -244,7 +241,7 @@ def index():
 
         if target_word_id:
             # Fetch the word from the database
-            word_entry = EnGrade1.query.get(target_word_id)
+            word_entry = KoGrade1.query.get(target_word_id)
             if not word_entry:
                 logging.warning(f"Word with ID '{target_word_id}' not found in the database. Selecting a new word.")
         else:
@@ -253,7 +250,7 @@ def index():
         # If the word is not found or not set, select a new word
         if not word_entry:
             # Replace db.func.rand() with db.func.random() if using PostgreSQL or SQLite
-            word_entry = EnGrade1.query.order_by(db.func.rand()).first()
+            word_entry = KoGrade1.query.order_by(db.func.rand()).first()
             if word_entry:
                 # Update the session with the new word
                 session['current_word_id'] = word_entry.id
@@ -325,7 +322,6 @@ def index():
 def handle_enter_signal():
     """
     Handles the 'Enter' control signal by processing the input buffer.
-    Generates feedback audio with correct Braille button instructions if the input is wrong.
     """
     if g.keyboard.buffered_mode and g.keyboard.input_buffer:
         with g.keyboard.lock:
@@ -350,23 +346,24 @@ def handle_enter_signal():
                 braille_chars += braille_char
             logging.debug(f"Braille Characters: {braille_chars}")
 
-            # Translate Braille to text using liblouis
+            # Translate using BrailleToKor
             try:
-                entered_word = louis.backTranslateString([BRAILLE_TABLE], braille_chars).strip().lower()
+                b = BrailleToKor()
+                entered_word = b.translation(braille_chars).strip()
                 logging.debug(f"Translated Word: {entered_word}")
             except Exception as e:
                 logging.error(f"Error during translation: {e}")
                 flash(f"Error during translation: {e}", "error")
                 return redirect(url_for('learning.index'))
 
-            # Retrieve the target word from the session
+            # Compare with target word
             target_word_id = session.get('current_word_id', None)
             if not target_word_id:
                 logging.error("No target word ID in session during Enter signal handling.")
                 flash("No target word selected.", "error")
                 return redirect(url_for('learning.index'))
 
-            target_word_entry = EnGrade1.query.get(target_word_id)
+            target_word_entry = KoGrade1.query.get(target_word_id)
             if not target_word_entry:
                 logging.error(f"Target word with ID '{target_word_id}' not found.")
                 flash("Target word not found.", "error")
@@ -375,62 +372,66 @@ def handle_enter_signal():
 
             if entered_word == target_word:
                 # Correct input logic
+                flash("Correct!", "success")
                 logging.info("User entered the correct word.")
-
-                # Select the next word first
-                new_word_entry = EnGrade1.query.order_by(db.func.rand()).first()
-                if new_word_entry:
-                    new_word = new_word_entry.word
-                    session['current_word_id'] = new_word_entry.id
-                    session['word_audio_played'] = False  # Reset flag for new word
-                    logging.debug(f"Next word selected: {new_word} with ID: {new_word_entry.id}")
-                else:
-                    new_word = ""
-                    flash("No more words available in the database.", "error")
-                    logging.warning("No more words available after correct input.")
-
-                # Generate feedback text with the next word
-                if new_word:
-                    feedback_text = f"Correct. Next word is {new_word}."
-                else:
-                    feedback_text = "Correct. No more words available."
-
                 # Generate feedback audio
-                feedback_audio_url = generate_feedback_audio(feedback_text, 'feedback_correct.mp3')
+                feedback_audio_url = generate_feedback_audio("Correct! The next word is", 'feedback.mp3')
                 if feedback_audio_url:
                     session['feedback_audio_url'] = feedback_audio_url
+                # Select the next word
+                new_word_entry = KoGrade1.query.order_by(db.func.rand()).first()
+                if new_word_entry:
+                    session['current_word_id'] = new_word_entry.id
+                    session['word_audio_played'] = False  # Reset flag for new word
+                    audio_url = url_for('learning.audio', word_id=new_word_entry.id)
+                    logging.debug(f"Next word selected: {new_word_entry.word} with ID: {new_word_entry.id}")
+                else:
+                    flash("No more words available in the database.", "error")
+                    logging.warning("No more words available after correct input.")
+                    audio_url = None
 
                 return render_template(
                     'learning/index.html',
-                    target_word=new_word if new_word else None,
-                    audio_url=None,  # Do not play word audio separately
+                    target_word=new_word_entry.word if new_word_entry else None,
+                    audio_url=audio_url,
                     feedback_audio_url=feedback_audio_url
                 )
             else:
                 # Incorrect input logic
                 flash("Incorrect input.", "error")
                 logging.info(f"User entered incorrect word: {entered_word} (expected: {target_word})")
+                # Store incorrect input for display
 
-                # Generate Braille button feedback for each letter in the target word
-                braille_feedback = generate_braille_buttons_feedback(target_word)
-                feedback_text = f"Wrong. Press {braille_feedback}"
+                # Generate Braille numbering for target_word
+                braille_numbering = []
+                for char in target_word_entry.word.lower():
+                    if char in BRAILLE_MAPPING:
+                        braille_numbering.append(BRAILLE_MAPPING[char])
+                    else:
+                        # Handle non-alphabetic characters if necessary
+                        braille_numbering.append(f"Unknown for {char}")
+                braille_numbering_str = ', '.join(braille_numbering)
 
-                # Generate feedback audio with instructions
-                feedback_audio_url = generate_feedback_audio(feedback_text, 'wrong_feedback.mp3')
-                if feedback_audio_url:
-                    session['feedback_audio_url'] = feedback_audio_url
+                # Combine "Wrong." and Braille numbering into one feedback
+                combined_feedback = f"Wrong. {braille_numbering_str}"
+                combined_feedback_audio_url = generate_feedback_audio(combined_feedback, 'wrong_and_braille.mp3')
 
-                # Render the template with the same target word and feedback audio
+                # Store the combined feedback audio URL in session
+                if combined_feedback_audio_url:
+                    session['feedback_audio_url'] = combined_feedback_audio_url
+
+                # Render the template with the same target word and combined feedback audio
                 return render_template(
                     'learning/index.html',
                     target_word=target_word_entry.word,
                     audio_url=None,  # Do not replay word audio
-                    feedback_audio_url=feedback_audio_url
+                    feedback_audio_url=combined_feedback_audio_url
                 )
     else:
         logging.debug("Input buffer is empty or buffered mode is not enabled upon 'Enter' signal.")
         flash("No input detected or buffered mode not enabled.", "error")
         return redirect(url_for('learning.index'))
+
 
 def handle_back_signal():
     """
@@ -505,7 +506,7 @@ def handle_ctrl_enter_signal():
         return redirect(url_for('learning.index'))
 
     # Retrieve the word entry from EnGrade1 by its ID
-    word_entry = EnGrade1.query.get(target_word_id)
+    word_entry = KoGrade1.query.get(target_word_id)
     if not word_entry:
         flash("Target word not found.", "error")
         logging.error(f"Word with ID '{target_word_id}' not found for storing.")

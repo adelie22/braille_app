@@ -29,3 +29,12 @@ class EnVoca(db.Model):
 
     def __repr__(self):
         return f"<EnVoca id={self.id} word='{self.word}'>"
+    
+class KoGrade1(db.Model):
+    __tablename__ = 'ko_grade1'
+    id = db.Column(db.Integer, primary_key=True)
+    word = db.Column(db.String(50), nullable=False, unique=True)
+    bin = db.Column(db.LargeBinary, nullable=False)  # 'bin'은 점자 데이터를 저장한다고 가정합니다.
+
+    def __repr__(self):
+        return f"<KoGrade1 id={self.id} word='{self.word}'>"

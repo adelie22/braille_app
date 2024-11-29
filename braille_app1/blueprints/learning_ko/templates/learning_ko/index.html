@@ -1,14 +1,16 @@
-<!-- blueprints/learning/templates/learning/index.html -->
+<!-- blueprints/learning_ko/templates/index_ko.html -->
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ko">
+
 <head>
     <meta charset="UTF-8">
-    <title>Learning Braille</title>
-    <!-- Google Fonts for Improved Typography -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <title>점자 받아쓰기</title>
+    <!-- 개선된 타이포그래피를 위한 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;600&display=swap"
+        rel="stylesheet">
     <style>
-        /* Reset and Base Styles */
+        /* 초기화 및 기본 스타일 */
         * {
             margin: 0;
             padding: 0;
@@ -35,7 +37,6 @@
             width: 100%;
             text-align: center;
             transition: transform 0.3s ease;
-            position: relative; /* For positioning indicators */
         }
 
         .container:hover {
@@ -59,6 +60,7 @@
             margin-bottom: 20px;
             animation: fadeIn 0.5s ease-in-out;
         }
+
         .flash.error {
             color: #c0392b;
             background-color: #fdecea;
@@ -68,6 +70,7 @@
             margin-bottom: 20px;
             animation: fadeIn 0.5s ease-in-out;
         }
+
         .flash.info {
             color: #2980b9;
             background-color: #eaf2f8;
@@ -79,21 +82,31 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .word-display, .input-display {
+        .word-display,
+        .input-display {
             margin: 30px 0;
         }
 
-        .word-display strong, .input-display strong {
+        .word-display strong,
+        .input-display strong {
             font-size: 1.2em;
             color: #34495e;
         }
 
         .braille-characters {
-            font-family: 'SimBraille', sans-serif; /* Ensure this font is available */
+            font-family: 'SimBraille', sans-serif;
+            /* 해당 폰트가 사용 가능해야 합니다 */
             background-color: #ecf0f1;
             padding: 20px;
             border-radius: 10px;
@@ -110,7 +123,8 @@
         }
 
         .braille-characters span.cursor {
-            background-color: #f1c40f; /* Bright color for better visibility */
+            background-color: #f1c40f;
+            /* 시인성을 위한 밝은 색상 */
             border-radius: 5px;
             padding: 2px 5px;
             transition: background-color 0.3s ease;
@@ -127,27 +141,11 @@
         }
 
         audio {
-            display: none; /* Hide audio elements */
+            margin-top: 30px;
+            outline: none;
         }
 
-        /* Visual Indicators (Optional) */
-        .audio-indicator {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            font-size: 1.5em;
-            display: none;
-            animation: fadeInOut 2s forwards;
-        }
-
-        @keyframes fadeInOut {
-            0% { opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { opacity: 0; }
-        }
-
-        /* Responsive Design */
+        /* 반응형 디자인 */
         @media (max-width: 768px) {
             .container {
                 padding: 30px 20px;
@@ -163,63 +161,65 @@
                 padding: 15px;
             }
 
-            .flash.success, .flash.error, .flash.info {
+            .flash.success,
+            .flash.error,
+            .flash.info {
                 padding: 8px 15px;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
-        <h1>Learning Braille</h1>
-        
-        <!-- Flash Messages -->
+        <h1>점자 받아쓰기</h1>
+
+        <!-- 플래시 메시지 -->
         {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            <ul class="flashes">
-              {% for category, message in messages %}
-                <li class="flash {{ category }}">{{ message }}</li>
-              {% endfor %}
-            </ul>
-          {% endif %}
-        {% endwith %}
-        
-        <!-- Display the Target Word -->
-        {% if target_word %}
-            <div class="word-display">
-                <strong>Target Word:</strong> {{ target_word }}
-            </div>
+        {% if messages %}
+        <ul class="flashes">
+            {% for category, message in messages %}
+            <li class="flash {{ category }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
         {% endif %}
-        
-        <!-- Display User's Input -->
+        {% endwith %}
+
+        <!-- 목표 단어 표시 -->
+        {% if target_word %}
+        <div class="word-display">
+            <strong>목표 단어:</strong> {{ target_word }}
+        </div>
+        {% endif %}
+
+        <!-- 사용자 입력 표시 -->
         <div class="input-display">
-            <strong>Your Input:</strong>
+            <strong>사용자 입력:</strong>
             <div id="user-input" class="braille-characters"></div>
         </div>
-        
-        <!-- Instruction -->
-        <p class="instruction">Translate the braille input to match the target word.</p>
 
-        <!-- Feedback Audio (e.g., "Delete", "Left", "Right") -->
-        {% if feedback_audio_url %}
-            <audio id="feedback-audio" src="{{ feedback_audio_url }}" autoplay></audio>
-        {% endif %}
+        <!-- 안내 문구 -->
+        <p class="instruction">점자 입력을 통해 목표 단어를 맞춰보세요.</p>
 
-        <!-- Word Audio -->
+        <!-- 피드백 오디오 (예: "정답입니다!" 또는 "틀렸습니다...") -->
+        <audio id="feedback-audio" {% if feedback_audio_url %}src="{{ feedback_audio_url }}" {% endif %}
+            autoplay></audio>
+
+        <!-- 단어 오디오 -->
         {% if audio_url %}
-            <audio id="word-audio" src="{{ audio_url }}" autoplay></audio>
+        <audio id="word-audio" src="{{ audio_url }}" autoplay></audio>
         {% endif %}
     </div>
-    
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             let formSubmitting = false;
             let lastDisplayBuffer = [];
             let lastCursorPosition = 0;
 
             function fetchInputBuffer() {
                 if (formSubmitting) return;
-                fetch('/learning/get_current_input_buffer')
+                fetch('/learning_ko/get_current_input_buffer')
                     .then(response => response.json())
                     .then(data => {
                         const inputBuffer = data.input_buffer;
@@ -229,22 +229,22 @@
                         console.log('Received cursor position:', cursorPosition);
                         console.log('Received control signal:', controlSignal);
 
-                        // Check if inputBuffer or cursorPosition is different from lastDisplayBuffer and lastCursorPosition
+                        // 이전 상태와 비교하여 업데이트가 필요한지 확인
                         if (JSON.stringify(inputBuffer) !== JSON.stringify(lastDisplayBuffer) || cursorPosition !== lastCursorPosition) {
-                            lastDisplayBuffer = inputBuffer.slice(); // Create a copy
+                            lastDisplayBuffer = inputBuffer.slice(); // 복사본 생성
                             lastCursorPosition = cursorPosition;
                             updateUserInputDisplay(lastDisplayBuffer, lastCursorPosition);
                         }
 
-                        // Handle control signals
-                        if (['Enter', 'Back', 'Left', 'Right', 'Ctrl+Enter', 'Ctrl+Backspace', 'Up', 'Down', 
-                        'Space', 'Ctrl+Up', 'Ctrl+Down', 'Ctrl+Left', 'Ctrl+Right', 'Ctrl+Space', 'Ctrl'].includes(controlSignal)) {
+                        // 제어 신호 처리
+                        if (['Enter', 'Back', 'Ctrl+Enter', 'Ctrl+Backspace', 'Left', 'Right', 'Up', 'Down',
+                            'Ctrl', 'Space', 'Ctrl + Up', 'Ctrl + Down', 'Ctrl + Space'].includes(controlSignal)) {
                             console.log(`Control signal detected: ${controlSignal}`);
                             formSubmitting = true;
-                            // Submit a hidden form to trigger the POST method
+                            // POST 메서드를 트리거하기 위해 숨겨진 폼 제출
                             var form = document.createElement('form');
                             form.method = 'POST';
-                            form.action = '/learning/';
+                            form.action = '/learning_ko/';
                             document.body.appendChild(form);
                             form.submit();
                         }
@@ -258,11 +258,11 @@
                 console.log(`Updating display. Buffer: ${inputBuffer}, Cursor: ${cursorPosition}`);
                 const userInputDisplay = document.getElementById('user-input');
                 if (userInputDisplay) {
-                    userInputDisplay.innerHTML = ''; // Clear current display
+                    userInputDisplay.innerHTML = ''; // 현재 표시 초기화
                     inputBuffer.forEach((binaryStr, index) => {
                         let brailleValue = 0;
                         for (let i = 0; i < 6; i++) {
-                            const bit = binaryStr[5 - i];  // Reverse order of bits
+                            const bit = binaryStr[5 - i];  // 비트 순서 반전
                             if (bit === '1') {
                                 brailleValue |= (1 << i);
                             }
@@ -280,31 +280,32 @@
                 }
             }
 
-            // Periodically fetch the input buffer
-            setInterval(fetchInputBuffer, 500); // Fetch every 0.5 second
+            // 주기적으로 입력 버퍼 가져오기
+            setInterval(fetchInputBuffer, 500); // 0.5초마다 가져오기
 
-            // Function to handle audio autoplay
+            // 오디오 자동 재생 처리 함수
             function handleAudioAutoplay(audioElement) {
                 if (audioElement) {
                     var playPromise = audioElement.play();
                     if (playPromise !== undefined) {
                         playPromise.then(_ => {
-                            console.log(`${audioElement.id} playback started.`);
+                            console.log(`${audioElement.id} 재생 시작.`);
                         })
-                        .catch(error => {
-                            console.error(`Autoplay was prevented for ${audioElement.id}:`, error);
-                        });
+                            .catch(error => {
+                                console.error(`${audioElement.id}의 자동 재생이 차단되었습니다:`, error);
+                            });
                     }
                 }
             }
-            // Handle Word Audio Autoplay
+            // 단어 오디오 자동 재생 처리
             var wordAudio = document.getElementById('word-audio');
             handleAudioAutoplay(wordAudio);
 
-            // Handle Feedback Audio Autoplay
+            // 피드백 오디오 자동 재생 처리
             var feedbackAudio = document.getElementById('feedback-audio');
             handleAudioAutoplay(feedbackAudio);
         });
     </script>
 </body>
+
 </html>

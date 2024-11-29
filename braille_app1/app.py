@@ -41,12 +41,13 @@ def create_app():
     # Import and register blueprints
     from blueprints.learning import learning_bp
     from blueprints.diary.routes import diary_bp
+    #from blueprints.manual.routes import manual_bp
+    from blueprints.learning_ko import learning_bp_ko
     app.register_blueprint(learning_bp, url_prefix='/learning')
     app.register_blueprint(diary_bp, url_prefix='/diary')
+    #app.register_blueprint(manual_bp, url_prefix='/manual')
+    app.register_blueprint(learning_bp_ko, url_prefix='/learning_ko')
     
-    # Register other blueprints similarly
-    # from blueprints.game import game_bp
-    # app.register_blueprint(game_bp, url_prefix='/game')
     
     # Home route
     @app.route('/')
