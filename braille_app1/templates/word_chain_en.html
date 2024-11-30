@@ -1,5 +1,3 @@
-<!-- templates/word_chain_en.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -8,123 +6,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>English Word Chain Game</title>
     <style>
+    
         body {
             font-family: Arial, sans-serif;
             text-align: center;
             padding: 20px;
             background-color: #f4f4f4;
         }
-
+    
         h1 {
             color: #333;
         }
-
-        input[type="text"] {
-            width: 60%;
-            padding: 10px;
-            font-size: 16px;
-            margin-bottom: 10px;
-        }
-
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            margin: 5px;
-            cursor: pointer;
-            border: none;
-            border-radius: 5px;
-            background-color: #000000;
-            color: white;
-            transition: background-color 0.3s;
-        }
-
-        button:hover {
-            background-color: #333333;
-        }
-
-        .selected {
-            background-color: rgb(255, 255, 178) !important;
-            color: black !important;
-        }
-
-        #result-en {
-            margin-top: 20px;
-            font-size: 18px;
-            color: green;
-        }
-
-        #history-en {
-            margin-top: 20px;
-            list-style-type: none;
-            padding: 0;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            text-align: left;
-        }
-
-        #history-en li {
-            padding: 5px 0;
-            font-size: 16px;
-            border-bottom: 1px solid #ddd;
-        }
-
-        #history-en li:nth-child(even) {
-            background-color: #e9ecef;
-        }
-
-        /* Additional Elements */
-        #attempts-en,
-        #exchange-en {
-            margin-top: 10px;
-            font-size: 23px;
-            color: #555;
-        }
-
-        #exchange-en {
-            font-weight: bold;
-        }
-
-        /* Popup Styles */
-        #popup-en {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: white;
-            border: 2px solid #ddd;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-            z-index: 1000;
-        }
-
-        #popup-en p {
-            margin-bottom: 20px;
-        }
-
-        .popup-button {
-            background-color: #f4f4f4;
-            color: #000;
-            border: 2px solid #000;
-            padding: 10px 20px;
-            margin: 5px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .popup-button:hover {
-            background-color: #ddd;
-        }
-
-        .popup-button.selected {
-            background-color: yellow !important;
-            color: black !important;
-        }
-
-        /* New Element for Live Display */
+    
+        /* Translated Word Display */
         #translated-word-en {
             margin-top: 20px;
             font-size: 1.5em;
@@ -137,6 +31,87 @@
             margin-right: auto;
             text-align: left;
             background-color: #fff;
+            min-height: 2em; /* Ensures the div has height even when empty */
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+        }
+        /* Style for the highlighted box around the text */
+        .cursor-highlight {
+            display: inline; /* Changed from inline-block to inline */
+            background-color: #e5e75f; /* Light blue background */
+            border: 2px solid #dde74d; /* Border to make it stand out */
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+    
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #000000;
+            color: white;
+            transition: background-color 0.3s;
+        }
+    
+        button:hover {
+            background-color: #333333;
+        }
+    
+        .selected {
+            background-color: rgb(226, 226, 222) !important;
+            color: black !important;
+        }
+    
+        #result-en {
+            margin-top: 20px;
+            font-size: 18px;
+            color: green;
+        }
+    
+        #history-en {
+            margin-top: 20px;
+            list-style-type: none;
+            padding: 0;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: left;
+        }
+    
+        #history-en li {
+            padding: 5px 0;
+            font-size: 16px;
+            border-bottom: 1px solid #ddd;
+        }
+    
+        #history-en li:nth-child(even) {
+            background-color: #e9ecef;
+        }
+    
+        /* Additional Elements */
+        #attempts-en,
+        #exchange-en {
+            margin-top: 10px;
+            font-size: 23px;
+            color: #555;
+        }
+    
+        #exchange-en {
+            font-weight: bold;
+        }
+    
+        /* ... existing styles ... */
+
+        /* Status Message Styles */
+        #status-message-en {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: red;
         }
     </style>
 </head>
@@ -146,7 +121,7 @@
     <!-- Live Translated Word Display -->
     <div class="input-display">
         <strong>Translated Word:</strong>
-        <input type="text" id="translated-word-en" class="braille-characters" readonly aria-label="Translated Word Input Field" />
+        <div id="translated-word-en" class="braille-characters" aria-label="Translated Word Display" tabindex="0"></div>
     </div>
     <!-- 'Submit' button is handled via 'Enter' signal from Braille keyboard -->
     <button id="back-to-menu-en" tabindex="1" aria-label="Back to Menu Button">Back to Menu</button>
@@ -157,12 +132,9 @@
     <p id="attempts-en">Incorrect Attempts: 0 | Total Exchanges: 0</p>
     <p id="exchange-en" style="font-size: 2rem; transition: transform 0.3s ease-out, opacity 0.3s ease-out;"></p>
 
-    <!-- Popup for Game Over -->
-    <div id="popup-en">
-        <p id="popup-message-en">There was an error. Do you want to try again?</p>
-        <button class="popup-button" id="retry-button-en" tabindex="2">Retry</button>
-        <button class="popup-button" id="cancel-button-en" tabindex="3">Cancel</button>
-    </div>
+    <!-- Status Message Display -->
+    <div id="status-message-en" aria-live="polite"></div>
+
 
     <!-- External JavaScript File -->
     <script src="{{ url_for('static', filename='js/word_chain_en.js') }}"></script>

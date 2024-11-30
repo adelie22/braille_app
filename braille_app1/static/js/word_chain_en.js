@@ -1,5 +1,3 @@
-// static/js/word_chain_en.js
-
 document.addEventListener('DOMContentLoaded', function () {
     let navigableItems;
     let currentIndex = 0;
@@ -8,7 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let incorrectAttempts = 0;
     let totalExchanges = 0;
     let lastExchange = { user: '', computer: '' };
-    let gameOver = false;
+    // Removed gameOver flag
 
     // Initialize menu and navigable items
     function initializeMenu() {
@@ -38,15 +36,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Get label for navigable items for speech feedback
     function getItemLabel(item) {
-        if (item.tagName === 'INPUT') {
-            return 'Translated Word Input Field';
-        } else if (item.id === 'back-to-menu-en') {
-            return 'Back to Menu Button';
-        } else if (item.id === 'retry-button-en') {
-            return 'Retry Button';
-        } else if (item.id === 'cancel-button-en') {
-            return 'Cancel Button';
-        }
+        if (item.tagName === 'INPUT' || item.tagName === 'DIV') {
+            return 'Game start';
+        } 
         return '';
     }
 
@@ -81,77 +73,137 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 300);
     }
 
-    // Display translated word from Braille inputs
-    function displayTranslatedInput(translatedText) {
-        const translatedWordInput = document.getElementById('translated-word-en');
-        translatedWordInput.value = translatedText;
+    function displayTranslatedInput(translatedText, cursorPosition) {
+        const translatedWordDiv = document.getElementById('translated-word-en');
+    
+        // Clear previous content
+        translatedWordDiv.innerHTML = '';
+    
+        // Clean the translated text:
+        // Replace non-breaking spaces with regular spaces, remove newline characters, trim, and collapse multiple spaces
+        const cleanedText = translatedText.replace(/\u00A0/g, ' ').replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+    
+        // Ensure the cursor position is within bounds
+        cursorPosition = Math.max(0, Math.min(cursorPosition, cleanedText.length));
+    
+        // Split the text around the cursor
+        const beforeText = cleanedText.slice(0, cursorPosition);
+        const afterText = cleanedText.slice(cursorPosition);
+    
+        console.log('cleanedText:', cleanedText);
+        console.log('beforeText:', beforeText);
+        console.log('afterText:', afterText);
+        console.log('cursorPosition:', cursorPosition);
+    
+        // Remove extra character after cursor only if not at the end
+        const afterTextContent = cursorPosition < cleanedText.length ? afterText.slice(1) : '';
+    
+        console.log('afterTextContent:', afterTextContent);
+    
+        // Create text nodes
+        const beforeTextNode = document.createTextNode(beforeText);
+        const cursorHighlight = document.createElement('span');
+        cursorHighlight.classList.add('cursor-highlight');
+        cursorHighlight.textContent = cleanedText[cursorPosition] || '';  // Highlight character at cursor
+    
+        const afterTextNode = document.createTextNode(afterTextContent);
+    
+        // Append nodes without introducing spaces
+        translatedWordDiv.appendChild(beforeTextNode);
+        translatedWordDiv.appendChild(cursorHighlight);
+        translatedWordDiv.appendChild(afterTextNode);
+    }
+
+    // Function to display and speak status messages
+    function showStatusMessage(message) {
+        const statusMessageDiv = document.getElementById('status-message-en');
+        if (statusMessageDiv) {
+            statusMessageDiv.innerText = message;
+            speakMessage(message);
+        }
     }
 
     // Polling function to fetch Braille inputs and control signals
     function fetchBrailleInput() {
-        if (gameOver) return; // Do not poll if game is over
+        // Removed gameOver check
 
         fetch('/word_chain_en/get_current_input_buffer')
             .then(response => response.json())
             .then(data => {
                 const inputBuffer = data.input_buffer;
                 const controlSignal = data.control_signal;
+                const quitGameFlag = data.quit_game;
+                const restartGameFlag = data.restart_game; // If applicable
+                const cursorPosition = data.cursor_position;
 
                 console.log('Received Braille input buffer:', inputBuffer);
                 console.log('Received control signal:', controlSignal);
 
                 // Fetch translated text if there's any input
                 if (inputBuffer && inputBuffer.length > 0) {
-                    fetchTranslatedText(inputBuffer);
+                    fetchTranslatedText(inputBuffer, cursorPosition);
                 } else {
-                    displayTranslatedInput(''); // Clear display if no input
+                    displayTranslatedInput('', cursorPosition); // Clear display if no input
                 }
 
-                // If 'Enter' signal is detected, submit the word
+                // Handle control signals
                 if (controlSignal) {
-                    handleControlSignal(controlSignal);
+                    handleControlSignal(controlSignal, quitGameFlag);
+                }
+
+                // If quit_game flag is true, redirect to menu
+                if (quitGameFlag) {
+                    quitGame();
+                }
+
+                // If restartGameFlag is true, restart the game
+                if (restartGameFlag) {
+                    restartGame();
                 }
             })
             .catch(error => console.error('Error fetching Braille input:', error));
     }
-        /**
+
+    /**
      * Handles various control signals received from the Braille keyboard.
-     *  {string} signal - The control signal to handle.
+     * @param {string} signal - The control signal to handle.
+     * @param {boolean} quit_game - Flag indicating whether to quit the game.
      **/
-    function handleControlSignal(signal) {
+    function handleControlSignal(signal, quit_game) {
+        console.log(`Handling control signal: ${signal}`);
+        
         switch (signal) {
             case 'Enter':
+                console.log("Detected 'Enter' signal. Submitting Braille word.");
                 submitBrailleWord();
                 break;
             case 'Left':
-                navigateMenu('left');
+                // Cursor movement is handled by the backend. Optionally, provide feedback.
+                speakMessage('Cursor moved left.');
                 break;
             case 'Right':
-                navigateMenu('right');
-                break;
-            case 'Ctrl+Backspace':
-                quitGame();
+                // Cursor movement is handled by the backend. Optionally, provide feedback.
+                speakMessage('Cursor moved right.');
                 break;
             case 'Back':
-                deleteLastCharacter();
+                // Deletion is handled by the backend. Optionally, provide feedback.
+                speakMessage('Character deleted.');
+                break;
+            case 'Ctrl+Backspace':
+                // Redirect to the menu
+                quitGame();
+                break;
+            case 'Ctrl+Enter':
+                console.log("Detected 'Ctrl + Enter' signal. Restarting the game.");
+                restartGame();
                 break;
             default:
                 console.warn(`Unhandled control signal: ${signal}`);
         }
     }
 
-    /**
-     * Deletes the last character from the translated word input field.
-     */
-    function deleteLastCharacter() {
-        const translatedWordInput = document.getElementById('translated-word-en');
-        let currentValue = translatedWordInput.value;
-        translatedWordInput.value = currentValue.slice(0, -1);
-        speakMessage('Character deleted.');
-    }
-
     // Fetch translated text from backend
-    function fetchTranslatedText(inputBuffer) {
+    function fetchTranslatedText(inputBuffer, cursorPosition) {
         fetch('/word_chain_en/translate_braille', {
             method: 'POST',
             headers: {
@@ -161,19 +213,25 @@ document.addEventListener('DOMContentLoaded', function () {
         })
             .then(response => response.json())
             .then(data => {
-                if (data.translated_text) {
-                    displayTranslatedInput(data.translated_text);
+                if (data.translated_text !== undefined && data.cursor_position !== undefined) {
+                    displayTranslatedInput(data.translated_text, data.cursor_position);
                 }
             })
             .catch(error => console.error('Error translating Braille input:', error));
     }
 
-    // Poll every second for new Braille inputs
-    setInterval(fetchBrailleInput, 1000);
+    // Poll every 500 milliseconds for new Braille inputs
+    setInterval(fetchBrailleInput, 500);
 
     // Submit the translated word when 'Enter' is detected
     function submitBrailleWord() {
-        const translatedWord = document.getElementById('translated-word-en').value.trim();
+        const translatedWordDiv = document.getElementById('translated-word-en');
+        let translatedWord = translatedWordDiv.textContent || translatedWordDiv.innerText || '';
+    
+        // Remove all non-breaking spaces and newline characters
+        translatedWord = translatedWord.replace(/\u00A0/g, '').replace(/[\r\n]+/g, '').trim();
+    
+        console.log(`Translated Word before submission: "${translatedWord}"`); // Debugging line
         if (translatedWord) {
             fetch('/word_chain_en/submit_braille_word', {
                 method: 'POST',
@@ -185,8 +243,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 .then(response => response.json())
                 .then(data => {
                     // Clear the translated word input field after submission
-                    document.getElementById('translated-word-en').value = '';
-                    document.getElementById('translated-word-en').focus();
+                    const translatedWordDiv = document.getElementById('translated-word-en');
+                    translatedWordDiv.innerHTML = '';
 
                     if (data.error) {
                         document.getElementById('result-en').innerText = data.error;
@@ -198,9 +256,8 @@ document.addEventListener('DOMContentLoaded', function () {
                             updateAttemptsDisplay();
 
                             if (incorrectAttempts >= 3) {
-                                gameOver = true;
-                                speakMessage('Game over. Press Enter to continue or Escape to quit.');
-                                openGameOverPopup();
+                                // Show status message instead of stopping the game
+                                showStatusMessage('Game over. Press Ctrl + Enter to restart or Ctrl + Backspace to quit.');
                             }
                         }
                     } else {
@@ -221,9 +278,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
 
                         if (data.game_over) {
-                            gameOver = true;
-                            speakMessage('Computer cannot generate a word. Press Enter to continue or Escape to quit.');
-                            openGameOverPopup();
+                            showStatusMessage('Computer cannot generate a word. Press Ctrl + Enter to restart or Ctrl + Backspace to quit.');
                         }
                     }
                 })
@@ -236,142 +291,14 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Navigation between menu items
-    function navigateMenu(direction) {
-        navigableItems[currentIndex].classList.remove('selected');
-        window.speechSynthesis.cancel(); // Cancel current speech
-
-        // Update index based on direction
-        if (direction === 'left') {
-            currentIndex = (currentIndex - 1 + navigableItems.length) % navigableItems.length;
-        } else if (direction === 'right') {
-            currentIndex = (currentIndex + 1) % navigableItems.length;
-        }
-
-        // Highlight the new selected item
-        navigableItems[currentIndex].classList.add('selected');
-        navigableItems[currentIndex].focus();
-        speakMessage(getItemLabel(navigableItems[currentIndex]));
-    }
-
-    // Keyboard event listener for navigation and submission
-    document.addEventListener('keydown', (event) => {
-        if (document.getElementById('popup-en').style.display === 'block') {
-            // Ignore key events when popup is active
-            return;
-        }
-
-        if (gameOver) {
-            // Ignore key events when game is over
-            return;
-        }
-
-        if (event.key === 'ArrowLeft') {
-            event.preventDefault();
-            navigateMenu('left');
-        } else if (event.key === 'ArrowRight') {
-            event.preventDefault();
-            navigateMenu('right');
-        } else if (event.key === 'Enter') {
-            const activeElement = navigableItems[currentIndex];
-            if (activeElement.id === 'back-to-menu-en') {
-                // Back to Menu button clicked
-                window.location.href = "/word_chain_menu"; // Update with actual menu URL
-            }
-            // No action needed for 'translated-word-en' as submission is handled via 'Enter' signal
-        }
-    });
-
-    // Popup button click event listeners
-    document.getElementById('retry-button-en').addEventListener('click', () => {
-        restartGame();
-    });
-
-    document.getElementById('cancel-button-en').addEventListener('click', () => {
-        quitGame();
-    });
-
-    // Open Game Over Popup
-    function openGameOverPopup() {
-        const popup = document.getElementById('popup-en');
-        const message = document.getElementById('popup-message-en');
-
-        if (incorrectAttempts >= 3) {
-            message.innerText = 'Game over. Press Enter to continue or Escape to quit.';
-        } else {
-            message.innerText = 'Computer cannot generate a word. Press Enter to continue or Escape to quit.';
-        }
-
-        popup.style.display = 'block';
-        navigableItems = [
-            document.getElementById('retry-button-en'),
-            document.getElementById('cancel-button-en'),
-        ];
-        currentIndex = 0;
-        navigableItems[currentIndex].classList.add('selected');
-        navigableItems[currentIndex].focus();
-        speakMessage(getItemLabel(navigableItems[currentIndex]));
-    }
-
-    // Close Game Over Popup
-    function closeGameOverPopup() {
-        const popup = document.getElementById('popup-en');
-        popup.style.display = 'none';
-        navigableItems.forEach(item => item.classList.remove('selected'));
-        currentIndex = 0;
-        initializeMenu();
-    }
-
-    // Handle popup navigation and actions
-    function handlePopupNavigationEn(e) {
-        e.preventDefault();
-        if (!navigableItems) return;
-
-        if (e.key === 'ArrowLeft') {
-            navigatePopupEn('left');
-        } else if (e.key === 'ArrowRight') {
-            navigatePopupEn('right');
-        } else if (e.key === 'Enter') {
-            const activeElement = navigableItems[currentIndex];
-            if (activeElement.id === 'retry-button-en') {
-                // Retry the game
-                restartGame();
-            } else if (activeElement.id === 'cancel-button-en') {
-                // Quit the game
-                quitGame();
-            }
-        } else if (e.key === 'Escape') {
-            // Escape key to quit the game
-            quitGame();
+    // Function to display and speak status messages
+    function showStatusMessage(message) {
+        const statusMessageDiv = document.getElementById('status-message-en');
+        if (statusMessageDiv) {
+            statusMessageDiv.innerText = message;
+            speakMessage(message);
         }
     }
-
-    // Navigation within the popup
-    function navigatePopupEn(direction) {
-        navigableItems[currentIndex].classList.remove('selected');
-        window.speechSynthesis.cancel(); // Cancel current speech
-
-        // Update index based on direction
-        if (direction === 'left') {
-            currentIndex = (currentIndex - 1 + navigableItems.length) % navigableItems.length;
-        } else if (direction === 'right') {
-            currentIndex = (currentIndex + 1) % navigableItems.length;
-        }
-
-        // Highlight the new selected popup item
-        navigableItems[currentIndex].classList.add('selected');
-        navigableItems[currentIndex].focus();
-        speakMessage(getItemLabel(navigableItems[currentIndex]));
-    }
-
-    // Additional key event listener for popup navigation
-    document.addEventListener('keydown', (event) => {
-        if (document.getElementById('popup-en').style.display === 'block') {
-            if (['ArrowLeft', 'ArrowRight', 'Enter', 'Escape'].includes(event.key)) {
-                handlePopupNavigationEn(event);
-            }
-        }
-    });
 
     // Restart the game
     function restartGame() {
@@ -387,7 +314,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 lastExchange = { user: '', computer: '' }; // Reset last exchanges
                 updateAttemptsDisplay();
                 updateExchangeDisplay();
-                closeGameOverPopup();
+                showStatusMessage('Game has been restarted.');
                 // Optionally, reload the page to reset the game state
                 window.location.reload();
             })

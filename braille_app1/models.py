@@ -38,3 +38,13 @@ class KoGrade1(db.Model):
 
     def __repr__(self):
         return f"<KoGrade1 id={self.id} word='{self.word}'>"
+    
+class KoVoca(db.Model):
+    __tablename__ = 'ko_voca'
+    id = db.Column(db.Integer, primary_key=True)
+    word = db.Column(db.String(50), nullable=False, unique=True)
+    # grade1_bin = db.Column(db.LargeBinary, nullable=True)  # Optional: If you decide to use it later
+    # grade2_bin = db.Column(db.LargeBinary, nullable=True)  # Optional: If you decide to use it later
+
+    def __repr__(self):
+        return f"<KoVoca id={self.id} word='{self.word}'>"

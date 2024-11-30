@@ -10,8 +10,61 @@ word_chain_en_api = Blueprint('word_chain_en_api', __name__)
 @word_chain_en_api.route('/word_chain_en/get_current_input_buffer', methods=['GET'])
 def get_current_input_buffer_word_chain():
     input_buffer = g.keyboard.get_current_input_buffer()
-    control_signal = g.keyboard.peek_control_signal()
-    return jsonify({'input_buffer': input_buffer, 'control_signal': control_signal})
+    input_signal = g.keyboard.peek_control_signal()  # Peek without consuming
+    control_signal = None
+    quit_game = False  # Flag to indicate if the game should quit
+    restart_game = False  # Flag to indicate if the game should restart
+
+    if input_signal and isinstance(input_signal, str):
+        control_signal = input_signal
+        logging.debug(f"Processing Control Signal: {control_signal}")
+
+        # Handle specific control signals except 'Enter'
+        if control_signal == 'Left':
+            g.keyboard.move_cursor_left()
+            g.keyboard.read_input()  # Consume the signal
+            logging.info("Cursor moved left.")
+        elif control_signal == 'Right':
+            g.keyboard.move_cursor_right()
+            g.keyboard.read_input()  # Consume the signal
+            logging.info("Cursor moved right.")
+        elif control_signal == 'Back':
+            success = g.keyboard.delete_at_cursor()
+            g.keyboard.read_input()  # Consume the signal
+            if success:
+                logging.info("Character deleted at cursor.")
+            else:
+                logging.info("No character to delete at cursor.")
+        elif control_signal == 'Ctrl+Backspace':
+            quit_game = True
+            g.keyboard.read_input()  # Consume the signal
+            logging.info("Ctrl + Backspace received. Preparing to quit the game.")
+        elif control_signal == 'Ctrl+Enter':
+            restart_game = True
+            g.keyboard.read_input()  # Consume the signal
+            logging.info("Ctrl + Enter received. Preparing to restart the game.")
+        elif control_signal == 'Ctrl':
+            g.keyboard.read_input()
+        elif control_signal == 'Enter':
+            # Do NOT consume the 'Enter' signal here
+            logging.info("'Enter' signal detected. Will be handled in submit_braille_word.")
+        else:
+            logging.warning(f"Unhandled Control Signal: {control_signal}")
+
+    # Fetch the updated input buffer and cursor position
+    updated_input_buffer = g.keyboard.get_current_input_buffer()
+    cursor_position = g.keyboard.get_cursor_position()
+
+    response = {
+        'input_buffer': updated_input_buffer,
+        'cursor_position': cursor_position,
+        'control_signal': control_signal,
+        'quit_game': quit_game,
+        'restart_game': restart_game  # Include the restart flag
+    }
+
+    return jsonify(response)
+
 
 @word_chain_en_api.route('/word_chain_en/submit_braille_word', methods=['POST'])
 def submit_braille_word():
@@ -32,6 +85,7 @@ def submit_braille_word():
 
     # Translate Braille to Text
     translated_word = translate_braille_to_text(input_buffer)
+    
     if not translated_word:
         flash("Braille translation failed.", "error")
         logging.error("Braille translation failed.")
@@ -72,7 +126,9 @@ def translate_braille():
     """
     input_buffer = g.keyboard.get_current_input_buffer()
     translated_text = translate_braille_to_text(input_buffer)
-    return jsonify({'translated_text': translated_text}), 200
+    cursor_position = g.keyboard.get_cursor_position()
+    return jsonify({'translated_text': translated_text, 'cursor_position': cursor_position}), 200
+
 
 
 #---------------------------------------------------------------------------------------#
