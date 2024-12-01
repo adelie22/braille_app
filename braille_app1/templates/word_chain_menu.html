@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ko">
-<!-- 142번줄에 뒤로가기 버튼 누르면 일단 google로 이동하게 해놨는데, 다른 html로 변경하면 됨 -->
 
 <head>
     <meta charset="UTF-8">
@@ -10,12 +9,13 @@
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            padding: 20px;
-            background-color: #f4f4f4;
+            padding: 100px;
+            background-color: #ffffff;
         }
 
         h1 {
-            color: #333;
+            color: #000000;
+            font-size: 80px;
         }
 
         .hidden {
@@ -38,8 +38,10 @@
             /* 고정 높이 */
             padding: 10px 20px;
             /* 내부 여백 조정 */
-            font-size: 35px;
+            font-size: 40px;
             /* 동일한 폰트 크기 */
+            font-weight: 800;
+            /* 폰트 굵기 */
             margin: 10px;
             /* 버튼 간 간격 */
             cursor: pointer;
@@ -53,6 +55,7 @@
             /* 버튼 텍스트 색상 */
             transition: background-color 0.3s ease, color 0.3s ease;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+            outline: none;
         }
 
         .menu-button:hover,
@@ -69,12 +72,11 @@
 </head>
 
 <body>
-    <div id="language-selection">
-        <h1>끝말잇기 언어 선택</h1>
+    <header>
+        <h1>→ 끝말잇기 언어 선택</h1>
         <button id="korean-btn" class="menu-button" tabindex="0">한국어</button>
         <button id="english-btn" class="menu-button" tabindex="1">영어</button>
-        <button id="back-to-menu" class="menu-button back-button" tabindex="2">뒤로가기</button>
-    </div>
+    </header>
 
     <script>
         let currentIndex = 0;
@@ -87,6 +89,17 @@
             setTimeout(() => {
                 const utterance = new SpeechSynthesisUtterance(message);
                 utterance.lang = 'ko-KR';
+                window.speechSynthesis.speak(utterance);
+            }, 100); // 지연 시간 추가
+        }
+
+        // 페이지 초기화 시 음성 안내
+        function playWelcomeMessage() {
+            window.speechSynthesis.cancel(); // 기존 음성 중단
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance("끝말잇기 언어 선택 화면입니다.");
+                utterance.lang = 'ko-KR';
+                utterance.rate = 0.8; // 느린 속도
                 window.speechSynthesis.speak(utterance);
             }, 100); // 지연 시간 추가
         }
@@ -126,10 +139,10 @@
 
         // 키보드 이벤트 리스너 (위, 아래 방향키)
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'ArrowUp') {
+            if (event.key === 'ArrowLeft') {
                 event.preventDefault();
                 navigateMenu('up');
-            } else if (event.key === 'ArrowDown') {
+            } else if (event.key === 'ArrowRight') {
                 event.preventDefault();
                 navigateMenu('down');
             } else if (event.key === 'Enter') {
@@ -146,15 +159,20 @@
                     window.location.href = "/word_chain_ko";
                 } else if (buttonId === 'english-btn') {
                     window.location.href = "/word_chain_en";
-                } else if (buttonId === 'back-to-menu') {
-                    window.location.href = "https://www.google.com";
-                }
+                } 
             });
         });
 
         // 초기화
         document.addEventListener('DOMContentLoaded', () => {
+            playWelcomeMessage(); // 페이지 로드 시 음성 안내 실행
             initializeMenu();
+        });
+
+        document.addEventListener("keydown", function (event) {
+        if (event.ctrlKey && event.key === "Backspace") {
+            window.history.back(); // 이전 페이지로 이동
+        }
         });
     </script>
 </body>

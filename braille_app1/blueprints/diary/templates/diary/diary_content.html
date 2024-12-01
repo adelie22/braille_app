@@ -155,9 +155,12 @@
                     case 'Ctrl+Enter':
                         saveDiary();
                         break;
+                    case 'Ctrl': 
+                        readWordBeforeCursor();
+                        break;
                     default:
                         // Assume any other signal is a character input
-                        insertCharacter(signal);
+                        console.warn(`Ignoring unhandled control signal: ${signal}`);
                 }
             }
 
@@ -166,9 +169,36 @@
                 if (cursorPosition > 0) {
                     cursorPosition--;
                     renderContent();
-                    speakMessage(`Cursor moved to position ${cursorPosition + 1}`);
+                    
+                    // Fetch the character at the new cursor position
+                    const char = content.charAt(cursorPosition);
+                    
+                    if (char) {
+                        speakCharacter(char);
+                    } else {
+                        speakMessage('No character at cursor.');
+                    }
                 } else {
                     speakMessage('Already at the beginning.');
+                }
+            }
+
+            // Function to read the word before the cursor
+            function readWordBeforeCursor() {
+                // Find the position of the last space before the cursor
+                const substringBeforeCursor = content.slice(0, cursorPosition);
+                const lastSpaceIndex = substringBeforeCursor.lastIndexOf(' ');
+
+                // Determine the start index of the word
+                const wordStart = lastSpaceIndex === -1 ? 0 : lastSpaceIndex + 1;
+
+                // Extract the word
+                const word = content.slice(wordStart, cursorPosition).trim();
+
+                if (word) {
+                    speakMessage(`Word before cursor: ${word}`);
+                } else {
+                    speakMessage('No word before cursor.');
                 }
             }
 
@@ -177,19 +207,36 @@
                 if (cursorPosition < content.length) {
                     cursorPosition++;
                     renderContent();
-                    speakMessage(`Cursor moved to position ${cursorPosition + 1}`);
+                    
+                    // Fetch the character at the new cursor position
+                    const char = content.charAt(cursorPosition);
+                    
+                    if (char) {
+                        speakCharacter(char);
+                    } else {
+                        speakMessage('No character at cursor.');
+                    }
                 } else {
                     speakMessage('Already at the end.');
                 }
             }
-
             // Function to delete character at cursor
             function deleteCharacter() {
                 if (cursorPosition > 0 && content.length > 0) {
+                    // Capture the character to be deleted
+                    const deletedChar = content.charAt(cursorPosition - 1);
+                    
+                    // Update the content by removing the character
                     content = content.slice(0, cursorPosition - 1) + content.slice(cursorPosition);
+                    
+                    // Move the cursor back
                     cursorPosition--;
+                    
+                    // Re-render the content
                     renderContent();
-                    speakMessage('Character deleted.');
+                    
+                    // Announce the deleted character
+                    speakDeletedCharacter(deletedChar);
                 } else {
                     speakMessage('Nothing to delete.');
                 }
@@ -212,6 +259,46 @@
                     speakMessage('No text before cursor.');
                 }
             }
+
+            // Function to speak the deleted character
+            function speakDeletedCharacter(char) {
+                const message = `Deleted character: ${char === ' ' ? 'space' : char}`;
+                console.log('Speaking deleted character:', message);
+                
+                if (isSpeaking) {
+                    window.speechSynthesis.cancel();
+                }
+                
+                const utterance = new SpeechSynthesisUtterance(message);
+                utterance.lang = 'en-US';
+                utterance.onstart = () => { isSpeaking = true; };
+                utterance.onend = () => { isSpeaking = false; };
+                window.speechSynthesis.speak(utterance);
+                
+                // Optionally, update the status message with the deleted character
+                statusMessage.textContent = message;
+            }
+
+
+            // Function to speak a specific character
+            function speakCharacter(char) {
+                const message = `Character at cursor: ${char === ' ' ? 'space' : char}`;
+                console.log('Speaking character:', message);
+                
+                if (isSpeaking) {
+                    window.speechSynthesis.cancel();
+                }
+                
+                const utterance = new SpeechSynthesisUtterance(message);
+                utterance.lang = 'en-US';
+                utterance.onstart = () => { isSpeaking = true; };
+                utterance.onend = () => { isSpeaking = false; };
+                window.speechSynthesis.speak(utterance);
+                
+                // Optionally, update the status message with the character
+                statusMessage.textContent = message;
+            }
+
 
             // Function to navigate back to the diary menu
             function navigateToMenu() {
@@ -251,11 +338,6 @@
 
             // Function to translate Braille bits to characters
             function translateBraille(bits) {
-                // Check if the string contains the descriptive format
-                if (bits.startsWith('Braille Signal (6-bit):')) {
-                    // Extract the 6-bit string
-                    bits = bits.split(':')[-1].trim();
-                }
 
                 const brailleDict = {
                     '000001': 'a',
@@ -305,12 +387,20 @@
                         
                         // Handle Braille Signals (Character Inputs)
                         brailleSignals.forEach(bits => {
-                            const char = translateBraille(bits);
-                            if (char) {
-                                console.log(`Received character: ${char}`);
-                                insertCharacter(char);
+                            // Only process 6-bit binary strings
+                            if (/^[01]{6}$/.test(bits)) {
+                                const char = translateBraille(bits);
+                                if (char) {
+                                    console.log(`Received character: ${char}`);
+                                    insertCharacter(char);
+                                } else {
+                                    console.warn(`Unrecognized Braille bits: ${bits}`);
+                                    speakMessage('Unrecognized Braille input.');
+                                }
                             } else {
-                                console.warn(`Unrecognized Braille bits: ${bits}`);
+                                console.warn(`Invalid Braille signal format: ${bits}`);
+                                // Optionally, announce unrecognized signal
+                                speakMessage('Unrecognized Braille input.');
                             }
                         });
                         

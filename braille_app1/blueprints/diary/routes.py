@@ -104,14 +104,13 @@ def get_braille_signals():
     # Fetch all Braille inputs
     input_buffer = g.keyboard.get_current_input_buffer()
     if input_buffer:
-        for line in input_buffer:
-            if line.startswith('Braille Signal (6-bit):'):
-                # Extract the 6-bit string
-                bits = line.split(':')[-1].strip()
+        logging.debug(f"Current input buffer: {input_buffer}")  # Added for debugging
+        for bits in input_buffer:
+            # Directly append the bits without checking for prefix
+            if len(bits) == 6 and all(c in '01' for c in bits):
                 signals.append(bits)
             else:
-                # Handle unexpected formats or log a warning
-                logging.warning(f"Unexpected input format: {line}")
+                logging.warning(f"Unexpected input format: {bits}")
         # Clear the buffer after fetching
         g.keyboard.clear_input_buffer()
     
@@ -132,6 +131,8 @@ def get_braille_signals():
         'control_signals': control_signals
     }
     
+    logging.debug(f"Sending response: {response}")  # Added for debugging
+    
     return jsonify(response), 200
 
 
@@ -149,5 +150,8 @@ def diary_content():
         revise = True
     else:
         content = ''
+    
+    # Enable buffered mode
+    g.keyboard.set_buffered_mode(True)
     
     return render_template('diary/diary_content.html', revise=revise, diary_id=revise_id)

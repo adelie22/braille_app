@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Vocabulary</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #ffffff;
+        }
+
+        h1 {
+            color: #000;
+            font-size: 80px;
+        }
+
+        #selection {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        button {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 200px;
+            height: 200px;
+            border: 2px solid #000;
+            border-radius: 10px;
+            background-color: #fff;
+            font-size: 70px;
+            font-weight: 800;
+            color: #000;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            outline: none;
+        }
+
+        .selected {
+            background-color: #000;
+            color: #fff;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>"내 한글 단어장!"</h1>
+    <div id="selection">
+        {% if vocabulary %}
+            {% for item in vocabulary %}
+                <button>{{ item.word }}</button> 
+            {% endfor %}
+        {% else %}
+            <p>No vocabulary data available.</p>
+        {% endif %}
+    </div>
+
+    <script>
+        // 음성 출력 함수
+        let isSpeaking = false; // 중복 음성 방지 플래그
+        function playVoiceMessage(message) {
+            if (isSpeaking) return; // 현재 음성 출력 중이면 중단
+            isSpeaking = true;
+
+            const utterance = new SpeechSynthesisUtterance(message);
+            utterance.lang = 'ko-KR';
+            utterance.rate = 0.8;
+
+            utterance.onend = () => {
+                isSpeaking = false; // 음성 출력 완료 시 플래그 해제
+            };
+
+            speechSynthesis.speak(utterance);
+        }
+
+        let currentIndex = 0;
+
+        function setupButtons() {
+            const buttons = document.querySelectorAll("#selection button");
+
+            buttons.forEach((button, index) => {
+                // 기존 버튼 초기화
+                button.classList.remove("selected");
+                button.onclick = null; // 중복 이벤트 제거
+
+                // 클릭 이벤트 추가
+                button.addEventListener("click", () => {
+                    playVoiceMessage(button.textContent.trim());
+                });
+
+                // 선택된 버튼 스타일 적용
+                if (index === currentIndex) {
+                    button.classList.add("selected");
+                }
+            });
+
+            // 현재 선택된 버튼에 포커스 설정
+            if (buttons[currentIndex]) {
+                buttons[currentIndex].focus();
+            }
+        }
+
+        document.addEventListener("keydown", function (event) {
+            const buttons = document.querySelectorAll("#selection button");
+
+            if (event.key === "ArrowRight") {
+                if (currentIndex < buttons.length - 1) {
+                    currentIndex++;
+                    setupButtons();
+                }
+            } else if (event.key === "ArrowLeft") {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    setupButtons();
+                }
+            } else if (event.key === "Enter") {
+                if (buttons[currentIndex]) {
+                    buttons[currentIndex].click();
+                }
+            }
+        });
+
+        // 페이지 로드 시 초기화
+        document.addEventListener("DOMContentLoaded", () => {
+            playVoiceMessage("내 한글 단어장 페이지입니다.");
+            setupButtons();
+        });
+
+        // Ctrl + Backspace -> 이전 페이지로 이동
+        document.addEventListener("keydown", function (event) {
+            if (event.ctrlKey && event.key === "Backspace") {
+                window.history.back();
+            }
+        });
+    </script>
+</body>
+</html>

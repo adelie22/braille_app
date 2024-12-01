@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Vocabulary</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #ffffff;
+        }
+
+        h1 {
+            color: #000;
+            font-size: 80px;
+        }
+
+        #selection {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        button {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: auto;
+            height: auto;
+            border: 2px solid #000;
+            border-radius: 10px;
+            background-color: #fff;
+            font-size: 70px;
+            font-weight: 800;
+            color: #000;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            outline: none;
+            padding: 1%;
+        }
+
+        .selected {
+            background-color: #000;
+            color: #fff;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <h1>내 영어 단어장!</h1>
+    <div id="selection">
+        {% if vocabulary %}
+            {% for item in vocabulary %}
+                <button>
+                    <span class="dots"></span>
+                    <span class="word">{{ item.word }}</span>
+                </button>            
+            {% endfor %}
+        {% else %}
+            <p>No vocabulary data available.</p>
+        {% endif %}
+    </div>
+
+    <script>
+            const englishBraille = {
+            'a': { dots: '⠁', positions: [1] },
+            'b': { dots: '⠃', positions: [1, 2] },
+            'c': { dots: '⠉', positions: [1, 4] },
+            'd': { dots: '⠙', positions: [1, 4, 5] },
+            'e': { dots: '⠑', positions: [1, 5] },
+            'f': { dots: '⠋', positions: [1, 2, 4] },
+            'g': { dots: '⠛', positions: [1, 2, 4, 5] },
+            'h': { dots: '⠓', positions: [1, 2, 5] },
+            'i': { dots: '⠊', positions: [2, 4] },
+            'j': { dots: '⠚', positions: [2, 4, 5] },
+            'k': { dots: '⠅', positions: [1, 3] },
+            'l': { dots: '⠇', positions: [1, 2, 3] },
+            'm': { dots: '⠍', positions: [1, 3, 4] },
+            'n': { dots: '⠝', positions: [1, 3, 4, 5] },
+            'o': { dots: '⠕', positions: [1, 3, 5] },
+            'p': { dots: '⠏', positions: [1, 2, 3, 4] },
+            'q': { dots: '⠟', positions: [1, 2, 3, 4, 5] },
+            'r': { dots: '⠗', positions: [1, 2, 3, 5] },
+            's': { dots: '⠎', positions: [2, 3, 4] },
+            't': { dots: '⠞', positions: [2, 3, 4, 5] },
+            'u': { dots: '⠥', positions: [1, 3, 6] },
+            'v': { dots: '⠧', positions: [1, 2, 3, 6] },
+            'w': { dots: '⠺', positions: [2, 4, 5] },
+            'x': { dots: '⠭', positions: [1, 3, 4, 6] },
+            'y': { dots: '⠽', positions: [1, 3, 4, 5, 6] },
+            'z': { dots: '⠵', positions: [1, 3, 5, 6] }
+        };
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const buttons = document.querySelectorAll("#selection button");
+            
+            buttons.forEach(button => {
+                const word = button.querySelector(".word").textContent.toLowerCase();
+                const dotsContainer = button.querySelector(".dots");
+                
+                let brailleDots = "";
+                for (const char of word) {
+                    if (englishBraille[char]) {
+                        brailleDots += englishBraille[char].dots + " ";
+                    }
+                }
+                
+                dotsContainer.textContent = brailleDots.trim();
+            });
+        });
+
+        function playVoiceMessage(message, lang = 'ko-KR', rate = 0.8, callback = null) {
+            const utterance = new SpeechSynthesisUtterance(message);
+            utterance.lang = lang;
+            utterance.rate = rate;
+            if (callback) {
+                utterance.onend = callback; // 음성 출력 완료 후 실행
+            }
+            speechSynthesis.speak(utterance);
+        }
+
+        function formatBrailleMessage(word) {
+            let brailleMessage = [];
+            for (let char of word.toLowerCase()) {
+                if (englishBraille[char]) {
+                    const positions = englishBraille[char].positions.join(", ");
+                    brailleMessage.push(`${positions} for ${char}`);
+                }
+            }
+            return brailleMessage.join(", ");
+        }
+
+        let currentIndex = 0;
+
+        function setupButtons() {
+            const buttons = document.querySelectorAll("#selection button");
+
+            buttons.forEach((button, index) => {
+                button.classList.remove("selected");
+                button.onclick = null;
+
+                if (index === currentIndex) {
+                    button.classList.add("selected");
+                }
+            });
+
+            if (buttons[currentIndex]) {
+                buttons[currentIndex].focus();
+            }
+        }
+
+        document.addEventListener("keydown", function (event) {
+            const buttons = document.querySelectorAll("#selection button");
+
+            if (event.key === "ArrowRight") {
+                if (currentIndex < buttons.length - 1) {
+                    currentIndex++;
+                    setupButtons();
+                    playVoiceMessage(buttons[currentIndex].textContent.trim(), 'en-US', 0.9);
+                }
+            } else if (event.key === "ArrowLeft") {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    setupButtons();
+                    playVoiceMessage(buttons[currentIndex].textContent.trim(), 'en-US', 0.9);
+                }
+            } else if (event.key === "Enter") {
+                if (buttons[currentIndex]) {
+                    const word = buttons[currentIndex].textContent.trim();
+                    const brailleMessage = formatBrailleMessage(word);
+                    playVoiceMessage(brailleMessage, 'en-US', 0.3);
+                }
+            }
+        });
+
+        document.addEventListener("DOMContentLoaded", () => {
+            playVoiceMessage("내 영어 단어장 화면입니다.", 'ko-KR', 0.8, () => {
+                const buttons = document.querySelectorAll("#selection button");
+                if (buttons.length > 0) {
+                    playVoiceMessage(buttons[0].textContent.trim(), 'en-US', 0.9); // 첫 번째 단어 읽기
+                }
+            });
+            setupButtons();
+        });
+    </script>
+</body>
+</html>

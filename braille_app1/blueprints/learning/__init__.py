@@ -10,4 +10,4 @@ learning_bp = Blueprint(
 )
 
 # Import routes to register them with the blueprint
-from . import routes
+from . import routes, routes_eng_2

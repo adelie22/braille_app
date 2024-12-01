@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app, flash,g
+from flask import Blueprint, request, jsonify, current_app, g, flash
 from word_chain_ko.logic import check_word_validity, generate_next_word, translate_braille_to_text
 import logging
 

@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">   
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영어 알파벳 학습</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #ffffff;
+        }
+
+        h1 {
+            color: #000;
+            font-size: 80px;
+        }
+
+        #brailleContainer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .braille-button {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 200px;
+            height: 250px;
+            border: 2px solid #000;
+            border-radius: 10px;
+            background-color: #fff;
+            font-size: 70px;
+            font-weight: 800;
+            color: #000;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .braille-button.selected {
+            background-color: #000;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <h1>알파벳 학습!</h1>
+    <div id="brailleContainer"></div>
+    <script>
+        const englishBraille = {
+            'a': { dots: '⠁', positions: [1] },
+            'b': { dots: '⠃', positions: [1, 2] },
+            'c': { dots: '⠉', positions: [1, 4] },
+            'd': { dots: '⠙', positions: [1, 4, 5] },
+            'e': { dots: '⠑', positions: [1, 5] },
+            'f': { dots: '⠋', positions: [1, 2, 4] },
+            'g': { dots: '⠛', positions: [1, 2, 4, 5] },
+            'h': { dots: '⠓', positions: [1, 2, 5] },
+            'i': { dots: '⠊', positions: [2, 4] },
+            'j': { dots: '⠚', positions: [2, 4, 5] },
+            'k': { dots: '⠅', positions: [1, 3] },
+            'l': { dots: '⠇', positions: [1, 2, 3] },
+            'm': { dots: '⠍', positions: [1, 3, 4] },
+            'n': { dots: '⠝', positions: [1, 3, 4, 5] },
+            'o': { dots: '⠕', positions: [1, 3, 5] },
+            'p': { dots: '⠏', positions: [1, 2, 3, 4] },
+            'q': { dots: '⠟', positions: [1, 2, 3, 4, 5] },
+            'r': { dots: '⠗', positions: [1, 2, 3, 5] },
+            's': { dots: '⠎', positions: [2, 3, 4] },
+            't': { dots: '⠞', positions: [2, 3, 4, 5] },
+            'u': { dots: '⠥', positions: [1, 3, 6] },
+            'v': { dots: '⠧', positions: [1, 2, 3, 6] },
+            'w': { dots: '⠺', positions: [2, 4, 5] },
+            'x': { dots: '⠭', positions: [1, 3, 4, 6] },
+            'y': { dots: '⠽', positions: [1, 3, 4, 5, 6] },
+            'z': { dots: '⠵', positions: [1, 3, 5, 6] }
+        };
+
+        let currentIndex = 0;
+
+        // 음성 출력 함수
+        function playVoiceMessage(message) {
+            const utterance = new SpeechSynthesisUtterance(message);
+            utterance.lang = 'ko-KR';
+            utterance.rate = 0.8;
+            speechSynthesis.speak(utterance);
+        }
+
+        // 페이지 초기화 시 음성 안내
+        function playWelcomeMessage() {
+            window.speechSynthesis.cancel(); // 기존 음성 중단
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance("알파벳 학습 화면입니다.");
+                utterance.lang = 'ko-KR';
+                utterance.rate = 0.8; // 느린 속도
+                window.speechSynthesis.speak(utterance);
+            }, 100); // 지연 시간 추가
+        }
+
+        function convertNumberToKorean(num) {
+            const koreanNumbers = ['일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+            return koreanNumbers[num - 1] || num;
+        }
+
+        function formatPositions(positions) {
+            if (positions.length === 1) {
+                return `${convertNumberToKorean(positions[0])} 번`;
+            } else {
+                const allButLast = positions.slice(0, -1).map(convertNumberToKorean).join(' ');
+                const last = `${convertNumberToKorean(positions[positions.length - 1])} 번`;
+                return `${allButLast} ${last}`;
+            }
+        }
+
+        // 버튼 렌더링
+        function renderBrailleButtons() {
+            const container = document.getElementById('brailleContainer');
+            container.innerHTML = '';
+
+            const brailleEntries = Object.entries(englishBraille);
+
+            brailleEntries.forEach(([char, { dots }], index) => {
+                const button = document.createElement('button');
+                button.className = 'braille-button';
+                button.innerHTML = `
+                    <div>${dots}</div>
+                    <div>${char}</div>
+                `;
+                if (index === currentIndex) {
+                    button.classList.add('selected');
+                }
+                container.appendChild(button);
+            });
+        }
+
+        // 키보드 이벤트 처리
+        document.addEventListener('keydown', function (event) {
+            const brailleEntries = Object.entries(englishBraille);
+            const totalCards = brailleEntries.length;
+
+            if (event.key === 'ArrowRight') {
+                if (currentIndex < totalCards - 1) {
+                    currentIndex++;
+                    renderBrailleButtons();
+                }
+            } else if (event.key === 'ArrowLeft') {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    renderBrailleButtons();
+                }
+            } else if (event.key === 'Enter') {
+                const [char, { dots, positions }] = brailleEntries[currentIndex];
+                const positionsText = formatPositions(positions);
+                playVoiceMessage(`${char}, ${positionsText}`);
+            }
+        });
+
+        // 페이지 로드 시 버튼 렌더링 및 음성 출력
+        document.addEventListener('DOMContentLoaded', () => {
+            playWelcomeMessage(); // 페이지 로드 시 음성 안내 실행
+            renderBrailleButtons();
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.ctrlKey && event.key === "Backspace") {
+                window.history.back(); // 이전 페이지로 이동
+            }
+        });
+    </script>
+</body>
+</html>

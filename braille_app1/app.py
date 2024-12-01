@@ -41,21 +41,25 @@ def create_app():
     # Import and register blueprints
     from blueprints.learning import learning_bp
     from blueprints.diary.routes import diary_bp
-    #from blueprints.manual.routes import manual_bp
+    from blueprints.manual.routes import manual_bp
     from blueprints.learning_ko import learning_bp_ko
     app.register_blueprint(learning_bp, url_prefix='/learning')
     app.register_blueprint(diary_bp, url_prefix='/diary')
-    #app.register_blueprint(manual_bp, url_prefix='/manual')
+    app.register_blueprint(manual_bp, url_prefix='/manual')
     app.register_blueprint(learning_bp_ko, url_prefix='/learning_ko')
-    
     
     # Home route
     @app.route('/')
+    def index():
+        return render_template('index.html')
+    
+    @app.route('/home')
     def home():
-        return render_template()
+        return render_template('home.html')
+    
     app.register_blueprint(word_chain_api)
     app.register_blueprint(word_chain_en_api)
-    @app.route('/')
+    
     @app.route('/word_chain_menu')
     def menu():
         return render_template('word_chain_menu.html')  # Render templates/menu.html
@@ -63,6 +67,7 @@ def create_app():
     # Route for rendering the Korean word chain game page
     @app.route('/word_chain_ko')
     def word_chain_ko():
+        g.keyboard.set_buffered_mode(True)
         return render_template('word_chain_ko.html')  # Render templates/word_chain_ko.html
 
     # Route for rendering the English word chain game page
