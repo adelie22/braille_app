@@ -2,7 +2,37 @@
 import hgtk
 import random
 from word_chain_ko.utils import is_valid_korean_word, fetch_nouns_from_api  # 필요한 유틸리티 가져오기
+import logging
+import re
 
+
+#---------------------------------------------------------------------------------------#
+from BrailleToKorean.BrailleToKor import BrailleToKor
+from KorToBraille.KorToBraille import KorToBraille
+
+
+def translate_braille_to_text(braille_bits):
+    """
+    Translates a list of 6-bit Braille signals into ko-text using BrailleToKor.
+    Returns a list of syllables.
+    """
+    braille_chars = ''.join([
+        chr(0x2800 + int(bits, 2)) for bits in braille_bits
+    ])
+    try:
+        b = BrailleToKor()
+        translated_text = b.translation(braille_chars).strip()
+        logging.debug(f"Translated Braille to Text: {translated_text}")
+        
+        # 한글 음절 단위로 분리 (유니코드 한글 음절 범위: \uAC00 - \uD7A3)
+        syllables = re.findall(r'[\uAC00-\uD7A3]', translated_text)
+        
+        return syllables
+    except Exception as e:
+        logging.error(f"Translation error: {e}")
+        return []
+    
+#---------------------------------------------------------------------------------------#
 def check_word_validity(word, history_ko):
     """
     사용자가 입력한 단어의 유효성을 검사하고,
@@ -47,12 +77,6 @@ def check_word_validity(word, history_ko):
 
     # 유효한 단어일 경우
     return True, None  # 유효한 단어라면 True 반환
-
-
-
-
-
-import hgtk
 
 def apply_duum_law(full_letter):
     """

@@ -439,12 +439,8 @@ def handle_enter_signal():
                 logging.debug(f"Feedback Text: {feedback_text}")
     
                 # 템플릿 렌더링 시 피드백 텍스트 전달 (필요시)
-                return render_template(
-                    'learning/index.html',
-                    target_word=target_word_entry.word,
-                    audio_url=None,  # Do not replay word audio
-                    feedback_text=feedback_text  # 수정된 피드백 텍스트 전달
-                )
+                return redirect(url_for('learning_ko.index'))
+
 
     else:
         logging.debug("Input buffer is empty or buffered mode is not enabled upon 'Enter' signal.")

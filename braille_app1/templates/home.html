@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8">   
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>홈 화면</title>
+    <title>학습</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -87,19 +86,10 @@
 
 <body>
     <header>
-        <h1>배울점</h1>
-        <h2>(점자 쓰기 학습 웹)</h2>
-        <button id="learning-btn" class="menu-button" tabindex="0">학습</button>
-        <button id="game-btn" class="menu-button" tabindex="1">끝말잇기</button>
-        <button id="diary-btn" class="menu-button" tabindex="2">다이어리</button>
-        <button id="manual-btn" class="menu-button" tabindex="3">매뉴얼</button>
+        <h1>→ 학습 언어 선택</h1>
+        <button id="ko-btn" class="menu-button" tabindex="0">한글</button>
+        <button id="en-btn" class="menu-button" tabindex="1">영어</button>
     </header>
-
-    <main>
-        <div class="horizontal-line"></div>
-        <p>안녕하세요. No Name Required 입니다!</p>  
-        <p>&lt;배울점&gt;을 통해 점자 쓰기를 재미있게 학습하시길 바랍니다. ☺️</p>
-    </main>
 
     <script>
         let currentIndex = 0;
@@ -119,7 +109,7 @@
          function playWelcomeMessage() {
         window.speechSynthesis.cancel(); // 기존 음성 중단
         setTimeout(() => {
-            const utterance = new SpeechSynthesisUtterance("배울점 홈 화면입니다. 좌우 방향키로 실행할 메뉴를 고르고, 엔터키를 눌러 실행할 수 있습니다.");
+            const utterance = new SpeechSynthesisUtterance("학습 언어 선택 화면입니다.");
             utterance.lang = 'ko-KR';
             utterance.rate = 0.8; // 느린 속도
             window.speechSynthesis.speak(utterance);
@@ -176,14 +166,10 @@
         menuButtons.forEach((button) => {
             button.addEventListener('click', () => {
                 const buttonId = button.id;
-                if (buttonId === 'learning-btn') {
-                    window.location.href = "/home";
-                } else if (buttonId === 'game-btn') {
-                    window.location.href = "/game";
-                } else if (buttonId === 'diary-btn') {
-                    window.location.href = "/diary";
-                } else if (buttonId === 'manual-btn') {
-                    window.location.href = "/manual";
+                if (buttonId === 'ko-btn') {
+                    window.location.href = "/learning/ko";
+                } else if (buttonId === 'en-btn') {
+                    window.location.href = "/learning/en";
                 }
             });
         });
@@ -194,7 +180,13 @@
             initializeMenu();
         });
 
+        document.addEventListener("keydown", function (event) {
+        if (event.ctrlKey && event.key === "Backspace") {
+            window.history.back(); // 이전 페이지로 이동
+        }
+        });
     </script>
+
 
 </body>
 </html>

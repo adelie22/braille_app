@@ -1,677 +1,317 @@
 <!-- blueprints/diary/templates/diary/diary.html -->
 
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diary Entries</title>
+    <title>Diary Section</title>
     <style>
-        /* [Your existing CSS styles] */
+        /* Basic Styles */
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-
-        h1 {
+            padding: 20px;
+            background-color: #fafafa;
             text-align: center;
-            color: #000000;
         }
-
-        table {
-            width: 100%;
-            border-collapse: separate;
-            /* Rounded corners by using separate border model */
-            border-spacing: 0;
-            margin-top: 20px;
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            overflow: hidden;
-        }
-
-        th,
-        td {
-            border: 1px solid #ddd;
-            padding: 12px;
+        .diary-list {
+            max-width: 800px;
+            margin: 20px auto;
             text-align: left;
         }
-
-        th.date-column,
-        td.date-column {
-            width: 150px;
-            /* Width for date column */
-        }
-
-        .content {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 200px;
-            /* Adjust as needed */
-        }
-
-        th {
-            background-color: #f4f4f4;
-            font-size: 18px;
-            border-bottom: 2px solid #ddd;
-        }
-
-        td {
-            font-size: 16px;
-            vertical-align: top;
-        }
-
-        .date-row {
-            font-weight: bold;
-            background-color:  #f4f4f4;
-            color: #000000;
-            border-bottom: none;
-            transition: background-color 0.3s ease;
-        }
-
-        .content-row {
+        .diary-item, #create-new-diary {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
             background-color: #fff;
-            color: #555;
-        }
-
-        .highlight {
-            background-color: rgb(0, 0, 0);
-            color: white;
-            transition: background-color 0.3s ease;
-        }
-
-        /* Highlight specificity for buttons */
-        #action-buttons button.highlight {
-            background-color: rgb(0, 0, 0);
-            color: white;
-        }
-
-        #popup,
-        #save-popup {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgb(255, 255, 255);
-            border: 2px solid #ddd;
-            padding: 20px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-            border-radius: 8px;
-        }
-
-        #popup button,
-        #save-popup button {
-            margin: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            background-color: #f4f4f4;
             cursor: pointer;
-            transition: background-color 0.3s ease;
+            position: relative;
+            outline: none;
         }
-
-        .popup-button {
-            border: 2px solid #000000;
-            background-color: #f4f4f4;
-            transition: background-color 0.3s ease;
+        .diary-item:hover, #create-new-diary:hover {
+            background-color: #f0f0f0;
         }
-
-        .popup-button.highlight {
-            background-color: rgb(0, 0, 0);
-            color: white;
-            transition: background-color 0.3s ease;
+        .diary-date {
+            font-size: 18px;
+            font-weight: bold;
         }
-
-        #action-buttons {
+        #create-new-diary {
+            background-color: #28a745;
+            color: #fff;
+            font-size: 20px;
+            transition: background-color 0.3s;
+        }
+        #create-new-diary:hover {
+            background-color: #218838;
+        }
+        /* Highlight selected item */
+        .selected {
+            background-color: #e5e75f !important;
+            border: 2px solid #dde74d;
+        }
+        /* Status Message */
+        #status-message {
             margin-top: 20px;
-            text-align: center;
-        }
-
-        #action-buttons button {
-            margin: 10px;
-            padding: 10px 20px;
-            font-size: 16px;
-            border: none;
-            border-radius: 5px;
-            background-color: #ffffff;
-            color: rgb(0, 0, 0);
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
-        }
-
-        #action-buttons button:hover {
-            background-color: rgb(200, 200, 200);
-        }
-
-        #create-entry {
-            display: none;
-            width: 100%;
-            margin-top: 20px;
-        }
-
-        #create-entry textarea {
-            width: 100%;
-            height: 150px;
-            padding: 10px;
-            font-size: 16px;
-            border: 2px solid #000000;
-            border-radius: 5px;
-            transition: border-color 0.3s ease;
+            font-size: 1.2em;
+            color: red;
         }
     </style>
 </head>
-
 <body>
-    <h1>다이어리 목록</h1>
-
-    <div id="action-buttons">
-        <button id="create-button" tabindex="0">작성</button>
-        <button id="back-button" tabindex="0" aria-label="뒤로가기 버튼">뒤로가기</button>
+    <h1>Diary Section</h1>
+    
+    <!-- Create New Diary Button -->
+    <button id="create-new-diary" aria-label="Create New Diary" tabindex="0">Create New Diary</button>
+    
+    <!-- List of Existing Diaries -->
+    <div class="diary-list" id="diary-list">
+        {% for diary in diaries %}
+            <div class="diary-item" 
+                 data-id="{{ diary.id }}" 
+                 data-date="{{ diary.date.strftime('%Y-%m-%d %H:%M:%S') }}" 
+                 tabindex="0">
+                <div class="diary-date">
+                    {{ diary.date.strftime('%Y-%m-%d %H:%M:%S') }}
+                </div>
+            </div>
+        {% endfor %}
     </div>
-
-    <div id="create-entry">
-        <textarea id="new-content" placeholder="새로운 다이어리를 작성하세요..."></textarea>
-    </div>
-
-    <!-- Loop through diary entries using SQLAlchemy's entries -->
-    {% for entry in entries %}
-    <table class="diary-table">
-        <tbody>
-            <!-- Date Row -->
-            <tr class="diary-entry date-row" tabindex="0" data-id="{{ entry.id }}" data-date="{{ entry.date.strftime('%Y-%m-%d') }}">
-                <td class="date-column" colspan="2">{{ entry.date.strftime('%Y-%m-%d') }}</td>
-            </tr>
-            <!-- Content Row -->
-            <tr class="diary-entry content-row" data-id="{{ entry.id }}">
-                <td colspan="2">{{ entry.content[:300] }}{% if entry.content|length > 300 %}...{% endif %}</td>
-            </tr>
-        </tbody>
-    </table>
-    {% endfor %}
-
-    <!-- Popups for deletion and saving -->
-    <div id="popup">
-        <p>다이어리를 삭제하겠습니까?</p>
-        <button class="popup-button" id="delete-button">삭제</button>
-        <button class="popup-button" id="cancel-button">취소</button>
-    </div>
-
-    <div id="save-popup">
-        <p>다이어리를 저장하시겠습니까?</p>
-        <button class="popup-button" id="confirm-save-button">저장</button>
-        <button class="popup-button" id="cancel-save-button">취소</button>
-    </div>
-
-    <!-- JavaScript for interactivity and accessibility -->
+    
+    <!-- Status Message -->
+    <div id="status-message" aria-live="polite"></div>
+    
+    <!-- External JavaScript -->
     <script>
-        let diaryEntries;
-        const createButton = document.getElementById('create-button');
-        const backButton = document.getElementById('back-button'); 
-        let currentIndex = 0; // Start by highlighting the create button
-        let isCreating = false;
-        let navigableItems;
+        document.addEventListener('DOMContentLoaded', function () {
+            // Define navigation index
+            // currentIndex: 0 = Create New Diary, 1 to N = diary entries
+            let currentIndex = 0;
+            const diaryList = document.getElementById('diary-list');
+            const diaryItems = diaryList.querySelectorAll('.diary-item');
+            const createNewDiaryBtn = document.getElementById('create-new-diary');
+            let totalItems = diaryItems.length + 1; // +1 for Create New Diary
+            const statusMessage = document.getElementById('status-message');
+            
+            // Speech synthesis control
+            let isSpeaking = false;
 
-        // '뒤로가기' button click handler
-        backButton.addEventListener('click', () => {
-            window.location.href = '/'; // Change to desired URL or implement desired functionality
-        });
-
-        // Function to update navigableItems and diaryEntries
-        function updateNavigableItems() {
-            diaryEntries = document.querySelectorAll('.diary-entry.date-row'); // Select only date rows
-            navigableItems = [createButton, backButton, ...Array.from(diaryEntries)];
-        }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            updateNavigableItems();
-
-            // Apply highlight to the first item and perform speech
-            navigableItems[currentIndex].classList.add('highlight');
-            if (navigableItems[currentIndex] === createButton) {
-                speakMessage('작성 버튼');
-            } else if (navigableItems[currentIndex] === backButton) {
-                speakMessage('뒤로가기 버튼');
-            } else {
-                speakDate(navigableItems[currentIndex]);
-            }
-
-            // Register navigation event
-            document.addEventListener('keydown', handleNavigation);
-
-            // Start polling for hardware events every 500ms
-            setInterval(fetchHardwareEvents, 500);
-        });
-
-        // Create button click handler
-        const newContentField = document.getElementById('new-content');
-        createButton.addEventListener('click', () => {
-            speakMessage('새로운 다이어리를 작성하세요.');
-            const createEntry = document.getElementById('create-entry');
-            createEntry.style.display = 'block';
-            newContentField.focus();
-            isCreating = true;
-
-            // Add key event listeners for the input field
-            newContentField.addEventListener('keydown', handleInputFieldEscape);
-            newContentField.addEventListener('keydown', handleCursorMovement);
-            newContentField.addEventListener('keydown', handleNewContentFieldKeydown);
-        });
-
-        // Handle input field keydown for speech output
-        function handleNewContentFieldKeydown(e) {
-            if (e.key === ' ') {
-                const words = newContentField.value.trim().split(' ');
-                const lastWord = words[words.length - 1];
-                speakMessage(lastWord);
-            } else if (e.key === 'Enter' && e.ctrlKey) {
-                e.preventDefault(); // Prevent default action
-                openSavePopup();
-            }
-        }
-
-        newContentField.addEventListener('keydown', handleNewContentFieldKeydown);
-
-        function handleInputFieldEscape(e) {
-            if (e.key === 'Escape' || (e.key === 'Backspace' && e.ctrlKey)) {
-                // Close the input field and reload the page to restore functionality
-                window.location.reload();
-            }
-        }
-
-        // Handle cursor movement in the input field for speech output
-        function handleCursorMovement(e) {
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) {
-                setTimeout(() => {
-                    let cursorPosition = newContentField.selectionStart;
-                    let text = newContentField.value;
-                    if (cursorPosition < text.length) {
-                        let character = text[cursorPosition];
-                        speakMessage(character);
-                    } else if (cursorPosition > 0 && cursorPosition === text.length) {
-                        // When cursor is at the end, read the previous character
-                        let character = text[cursorPosition - 1];
-                        speakMessage(character);
-                    }
-                }, 100); // Delay to allow cursor position to update
-            }
-        }
-
-        // Function to open the save popup
-        function openSavePopup() {
-            window.speechSynthesis.cancel();
-            speakMessage('다이어리를 저장하시겠습니까?');
-            document.getElementById('save-popup').style.display = 'block';
-
-            // Remove key event listeners from the input field
-            newContentField.removeEventListener('keydown', handleInputFieldEscape);
-            newContentField.removeEventListener('keydown', handleCursorMovement);
-            newContentField.removeEventListener('keydown', handleNewContentFieldKeydown);
-
-            let savePopupButtons = document.querySelectorAll('#save-popup .popup-button');
-            let savePopupIndex = 0;
-            savePopupButtons[savePopupIndex].classList.add('highlight');
-            speakMessage(savePopupButtons[savePopupIndex].innerText);
-
-            // Delay registering the popup navigation event listener
-            setTimeout(() => {
-                document.addEventListener('keydown', handleSavePopupNavigation);
-            }, 100);
-        }
-
-        // Handle navigation within the save popup
-        function handleSavePopupNavigation(e) {
-            e.preventDefault();
-            const savePopupButtons = document.querySelectorAll('#save-popup .popup-button');
-            let savePopupIndex = Array.from(savePopupButtons).findIndex(button => button.classList.contains('highlight'));
-
-            if (['ArrowRight', 'ArrowLeft'].includes(e.key)) {
-                savePopupButtons[savePopupIndex].classList.remove('highlight');
-                if (e.key === 'ArrowRight') {
-                    savePopupIndex = (savePopupIndex + 1) % savePopupButtons.length;
-                } else if (e.key === 'ArrowLeft') {
-                    savePopupIndex = (savePopupIndex - 1 + savePopupButtons.length) % savePopupButtons.length;
-                }
-                savePopupButtons[savePopupIndex].classList.add('highlight');
-                speakMessage(savePopupButtons[savePopupIndex].innerText);
-            } else if (e.key === 'Enter') {
-                if (savePopupButtons[savePopupIndex].id === 'confirm-save-button') {
-                    saveDiary();
+            // Function to get the currently focused element based on currentIndex
+            function getCurrentElement() {
+                if (currentIndex === 0) {
+                    return createNewDiaryBtn;
                 } else {
-                    closeSavePopup();
+                    return diaryItems[currentIndex - 1];
                 }
-                document.removeEventListener('keydown', handleSavePopupNavigation);
-            } else if (e.key === 'Escape') {
-                closeSavePopup();
-                document.removeEventListener('keydown', handleSavePopupNavigation);
             }
-        }
 
-        // Function to close the save popup
-        function closeSavePopup() {
-            window.speechSynthesis.cancel();
-            document.getElementById('save-popup').style.display = 'none';
-            let savePopupButtons = document.querySelectorAll('#save-popup .popup-button');
-            savePopupButtons.forEach(button => button.classList.remove('highlight'));
-
-            // Re-add key event listeners to the input field
-            newContentField.addEventListener('keydown', handleInputFieldEscape);
-            newContentField.addEventListener('keydown', handleCursorMovement);
-            newContentField.addEventListener('keydown', handleNewContentFieldKeydown);
-        }
-
-        // Function to save a new diary entry
-        function saveDiary() {
-            const currentDate = new Date().toISOString().split('T')[0];
-            const newContent = newContentField.value;
-
-            if (newContent) {
-                fetch('/diary/create', {  // Ensure this URL matches your Flask route
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        date: currentDate,
-                        content: newContent
-                    })
-                }).then(response => {
-                    if (response.ok) {
-                        window.location.reload();
-                    } else {
-                        response.json().then(data => {
-                            alert('다이어리를 작성하는 중 오류가 발생했습니다: ' + data.error);
-                        });
-                    }
-                }).catch(error => {
-                    console.error('다이어리 작성 중 오류 발생:', error);
-                    alert('다이어리 작성 중 오류가 발생했습니다. 다시 시도해 주세요.');
-                });
+            // Function to clear all highlights
+            function clearHighlights() {
+                createNewDiaryBtn.classList.remove('selected');
+                diaryItems.forEach(item => item.classList.remove('selected'));
             }
-        }
 
-        // Handle navigation through diary entries using keyboard
-        function handleNavigation(e) {
-            if (isCreating) return;
-
-            // Prevent default behavior
-            e.preventDefault();
-
-            // Remove highlight from the current item
-            navigableItems[currentIndex].classList.remove('highlight');
-
-            if (e.key === 'ArrowDown') {
-                currentIndex = (currentIndex + 1) % navigableItems.length;
-            } else if (e.key === 'ArrowUp') {
-                currentIndex = (currentIndex - 1 + navigableItems.length) % navigableItems.length;
-            } else if (e.key === 'Enter') {
-                if (navigableItems[currentIndex] === createButton) {
-                    createButton.click();
-                } else if (navigableItems[currentIndex] === backButton) {
-                    backButton.click();
+            // Function to update selection and handle speech
+            function updateSelection() {
+                clearHighlights();
+                const currentElement = getCurrentElement();
+                currentElement.classList.add('selected');
+                currentElement.focus();
+                
+                if (currentIndex === 0) {
+                    // "Create New Diary" selected
+                    speakMessage('Create New Diary', 'en-US');
                 } else {
-                    const selectedItem = navigableItems[currentIndex];
-                    const selectedId = selectedItem.getAttribute('data-id');
-                    window.location.href = `/diary/content/${selectedId}`;
-                }
-                return;
-            } else if (e.key === 'Backspace' && e.ctrlKey && navigableItems[currentIndex] !== createButton) {
-                openPopup();
-                return;
-            }
-
-            // Add highlight to the new item
-            navigableItems[currentIndex].classList.add('highlight');
-            navigableItems[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-            if (navigableItems[currentIndex] === createButton) {
-                speakMessage('작성 버튼');
-            } else if (navigableItems[currentIndex] === backButton) {
-                speakMessage('뒤로가기 버튼');
-            } else {
-                speakDate(navigableItems[currentIndex]);
-            }
-        }
-
-        // Function to move highlight up (called by polling)
-        function moveHighlightUp() {
-            if (currentIndex > 0) {
-                navigableItems[currentIndex].classList.remove('highlight');
-                currentIndex--;
-                navigableItems[currentIndex].classList.add('highlight');
-                navigableItems[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                if (navigableItems[currentIndex] === createButton) {
-                    speakMessage('작성 버튼');
-                } else if (navigableItems[currentIndex] === backButton) {
-                    speakMessage('뒤로가기 버튼');
-                } else {
-                    speakDate(navigableItems[currentIndex]);
+                    // Diary entry selected
+                    const diaryDate = currentElement.dataset.date;
+                    speakMessage(`Diary from ${diaryDate}`, 'en-US');
                 }
             }
-        }
 
-        // Function to move highlight down (called by polling)
-        function moveHighlightDown() {
-            if (currentIndex < navigableItems.length - 1) {
-                navigableItems[currentIndex].classList.remove('highlight');
-                currentIndex++;
-                navigableItems[currentIndex].classList.add('highlight');
-                navigableItems[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                if (navigableItems[currentIndex] === createButton) {
-                    speakMessage('작성 버튼');
-                } else if (navigableItems[currentIndex] === backButton) {
-                    speakMessage('뒤로가기 버튼');
-                } else {
-                    speakDate(navigableItems[currentIndex]);
+            // Function to speak messages in specified language
+            function speakMessage(message, lang) {
+                console.log(`Speaking message: "${message}" in language: ${lang}`);
+                if (isSpeaking) {
+                    window.speechSynthesis.cancel();
                 }
-            }
-        }
-
-        // Function to handle 'Enter' action from hardware
-        function handleEnterAction() {
-            if (navigableItems[currentIndex] === createButton) {
-                createButton.click();
-            } else if (navigableItems[currentIndex] === backButton) {
-                backButton.click();
-            } else {
-                const selectedItem = navigableItems[currentIndex];
-                const selectedId = selectedItem.getAttribute('data-id');
-                window.location.href = `/diary/content/${selectedId}`;
-            }
-        }
-
-        // Function to handle 'Backspace' action from hardware
-        function handleBackspaceAction() {
-            if (navigableItems[currentIndex] !== createButton) {
-                openPopup();
-            }
-        }
-
-        // Function to open the delete popup
-        function openPopup() {
-            window.speechSynthesis.cancel();
-            speakMessage('다이어리를 삭제하겠습니까?');
-            document.getElementById('popup').style.display = 'block';
-
-            // Remove general navigation key listener
-            document.removeEventListener('keydown', handleNavigation);
-
-            let popupButtons = document.querySelectorAll('#popup .popup-button');
-            let popupIndex = 0;
-            popupButtons[popupIndex].classList.add('highlight');
-            speakMessage(popupButtons[popupIndex].innerText);
-
-            setTimeout(() => {
-                document.addEventListener('keydown', handlePopupNavigation);
-            }, 100);
-
-            // Store the selected diary ID
-            const selectedId = navigableItems[currentIndex].getAttribute('data-id');
-            document.getElementById('delete-button').dataset.id = selectedId;
-        }
-
-        // Handle navigation within the delete popup
-        function handlePopupNavigation(e) {
-            e.preventDefault();
-            const popupButtons = document.querySelectorAll('#popup .popup-button');
-            let popupIndex = Array.from(popupButtons).findIndex(button => button.classList.contains('highlight'));
-
-            if (['ArrowRight', 'ArrowLeft'].includes(e.key)) {
-                popupButtons[popupIndex].classList.remove('highlight');
-                if (e.key === 'ArrowRight') {
-                    popupIndex = (popupIndex + 1) % popupButtons.length;
-                } else if (e.key === 'ArrowLeft') {
-                    popupIndex = (popupIndex - 1 + popupButtons.length) % popupButtons.length;
-                }
-                popupButtons[popupIndex].classList.add('highlight');
-                speakMessage(popupButtons[popupIndex].innerText);
-            } else if (e.key === 'Enter') {
-                if (popupButtons[popupIndex].id === 'delete-button') {
-                    const id = document.getElementById('delete-button').dataset.id;
-                    deleteDiary(id);
-                } else {
-                    closePopup();
-                }
-                document.removeEventListener('keydown', handlePopupNavigation);
-            } else if (e.key === 'Escape') {
-                closePopup();
-                document.removeEventListener('keydown', handlePopupNavigation);
-            }
-        }
-
-        // Function to close the delete popup
-        function closePopup() {
-            window.speechSynthesis.cancel();
-            document.getElementById('popup').style.display = 'none';
-            let popupButtons = document.querySelectorAll('#popup .popup-button');
-            popupButtons.forEach(button => button.classList.remove('highlight'));
-
-            // Re-add general navigation key listener
-            document.removeEventListener('keydown', handlePopupNavigation);
-            document.addEventListener('keydown', handleNavigation);
-        }
-
-        // Function to delete a diary entry
-        function deleteDiary(id) {
-            fetch(`/diary/delete/${id}`, {  // Ensure this URL matches your Flask route
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-            }).then(response => {
-                if (response.ok) {
-                    // Remove the deleted entry from the DOM
-                    const deletedItem = document.querySelector(`.diary-entry.date-row[data-id="${id}"]`).closest('table');
-                    if (deletedItem) {
-                        deletedItem.remove();
-                    }
-
-                    // Update navigableItems and adjust currentIndex
-                    updateNavigableItems();
-
-                    // Remove highlight from all items
-                    navigableItems.forEach(item => item.classList.remove('highlight'));
-
-                    // Apply highlight to the current item
-                    if (navigableItems.length > 0) {
-                        if (currentIndex >= navigableItems.length) {
-                            currentIndex = navigableItems.length - 1;
-                        }
-                        navigableItems[currentIndex].classList.add('highlight');
-                        navigableItems[currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        if (navigableItems[currentIndex] === createButton) {
-                            speakMessage('작성 버튼');
-                        } else if (navigableItems[currentIndex] === backButton) {
-                            speakMessage('뒤로가기 버튼');
-                        } else {
-                            speakDate(navigableItems[currentIndex]);
-                        }
-                    } else {
-                        // If no items left, highlight the create button
-                        currentIndex = 0;
-                        createButton.classList.add('highlight');
-                        speakMessage('작성 버튼');
-                    }
-                    closePopup();
-                } else {
-                    response.json().then(data => {
-                        alert('삭제하는 중 오류가 발생했습니다: ' + data.error);
-                    });
-                    closePopup();
-                }
-            }).catch(error => {
-                console.error('삭제 중 오류 발생:', error);
-                alert('삭제 중 오류가 발생했습니다. 다시 시도해 주세요.');
-                closePopup();
-            });
-        }
-
-        // Function to speak the date of a diary entry
-        function speakDate(element) {
-            window.speechSynthesis.cancel();
-            const dateText = element.getAttribute('data-date');
-            const [year, month, day] = dateText.split('-');
-            const formattedDate = `${year}년 ${parseInt(month)}월 ${parseInt(day)}일`;
-            const speechText = `${formattedDate} 작성된 다이어리입니다.`;
-
-            setTimeout(() => {
-                const utterance = new SpeechSynthesisUtterance(speechText);
-                utterance.lang = 'ko-KR';
-                window.speechSynthesis.speak(utterance);
-            }, 100);
-        }
-
-        // Function to speak a message
-        function speakMessage(message) {
-            window.speechSynthesis.cancel();
-            setTimeout(() => {
                 const utterance = new SpeechSynthesisUtterance(message);
-                utterance.lang = 'ko-KR';
-                window.speechSynthesis.speak(utterance);
-            }, 100);
-        }
-
-        // Function to fetch hardware events from the server
-        function fetchHardwareEvents() {
-            fetch('/hardware_events')
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.length > 0) {
-                        data.forEach(event => {
-                            handleHardwareEvent(event);
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching hardware events:', error);
-                });
-        }
-
-        // Function to handle individual hardware events
-        function handleHardwareEvent(event) {
-            if (event.type === 'control') {
-                const action = event.data;
-                console.log('Handling control action:', action);
-                if (action === 'ArrowUp') {
-                    moveHighlightUp();
-                } else if (action === 'ArrowDown') {
-                    moveHighlightDown();
-                } else if (action === 'Enter') {
-                    handleEnterAction();
-                } else if (action === 'Backspace') {
-                    handleBackspaceAction();
+                utterance.lang = lang; // Set language
+                
+                // Select a voice that matches the language
+                const voices = window.speechSynthesis.getVoices();
+                const matchedVoice = voices.find(voice => voice.lang === lang);
+                if (matchedVoice) {
+                    utterance.voice = matchedVoice;
+                } else {
+                    console.warn(`No voice found for language: ${lang}. Using default voice.`);
                 }
-                // Handle other control actions if needed
-            } else if (event.type === 'braille_input') {
-                // Handle braille input if needed
-                console.log('Received braille input:', event.data);
-                // Implement functionality based on braille input
+                
+                utterance.onstart = () => { isSpeaking = true; };
+                utterance.onend = () => { isSpeaking = false; };
+                window.speechSynthesis.speak(utterance);
             }
-        }
-    </script>
 
+            // Function to activate the selected item
+            function activateSelectedItem() {
+                const currentElement = getCurrentElement();
+                if (currentIndex === 0) {
+                    // Navigate to Create New Diary
+                    navigateToDiaryContent();
+                } else {
+                    const diaryId = currentElement.dataset.id;
+                    navigateToDiaryContent(diaryId);
+                }
+            }
+
+            // Function to navigate to diary content page
+            function navigateToDiaryContent(diaryId = null) {
+                if (diaryId) {
+                    window.location.href = `/diary/content?revise=${diaryId}`;
+                } else {
+                    window.location.href = `/diary/content`;
+                }
+            }
+
+            // Function to read diary content via speech synthesis
+            function readDiaryContent(diaryId) {
+                fetch(`/diary/read/${diaryId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.content) {
+                            speakMessage(data.content, 'en-US');
+                        } else {
+                            speakMessage('Diary content is empty.', 'en-US');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error reading diary:', error);
+                        speakMessage('Failed to read diary.', 'en-US');
+                    });
+            }
+
+            // Function to delete a diary entry
+            function deleteDiary(diaryId) {
+                if (confirm('Are you sure you want to delete this diary?')) {
+                    fetch(`/diary/delete/${diaryId}`, {
+                        method: 'DELETE',
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (data.message) {
+                            speakMessage(data.message, 'en-US');
+                            // Remove the diary from the list
+                            const diaryElement = document.querySelector(`.diary-item[data-id='${diaryId}']`);
+                            if (diaryElement) {
+                                diaryElement.remove();
+                                // Update indices and totalItems
+                                currentIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+                                // Recalculate totalItems
+                                totalItems = diaryList.querySelectorAll('.diary-item').length + 1;
+                                updateSelection();
+                            }
+                        } else if (data.error) {
+                            speakMessage(data.error, 'en-US');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting diary:', error);
+                        speakMessage('Failed to delete diary.', 'en-US');
+                    });
+                }
+            }
+
+            // Handle Braille Keyboard Signals
+            function handleBrailleSignal(signal) {
+                console.log('Received signal:', signal);
+                switch(signal) {
+                    case 'Up':
+                        if (currentIndex > 0) {
+                            currentIndex--;
+                            updateSelection();
+                        }
+                        break;
+                    case 'Down':
+                        if (currentIndex < totalItems -1) {
+                            currentIndex++;
+                            updateSelection();
+                        }
+                        break;
+                    case 'Ctrl+Space':
+                        handleCtrlSpace();
+                        break;
+                    case 'Ctrl+Left':
+                        handleCtrlLeft();
+                        break;
+                    case 'Enter':
+                        activateSelectedItem();
+                        break;
+                    default:
+                        console.warn(`Unhandled signal: ${signal}`);
+                }
+            }
+
+            // Function to handle 'Ctrl+Space' signal
+            function handleCtrlSpace() {
+                if (currentIndex === 0) {
+                    // No action for "Create New Diary"
+                    speakMessage('Create New Diary. No content to read.', 'en-US');
+                    return;
+                }
+                const currentElement = getCurrentElement();
+                const diaryId = currentElement.dataset.id;
+                readDiaryContent(diaryId);
+            }
+
+            // Function to handle 'Ctrl+Left' signal
+            function handleCtrlLeft() {
+                if (currentIndex === 0) {
+                    // No action for "Create New Diary"
+                    speakMessage('Create New Diary. No diary to delete.', 'en-US');
+                    return;
+                }
+                const currentElement = getCurrentElement();
+                const diaryId = currentElement.dataset.id;
+                deleteDiary(diaryId);
+            }
+
+            // Poll the backend for Braille signals and dispatch events
+            function pollBrailleSignals() {
+                fetch('/diary/get_braille_signals')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const brailleSignals = data.braille_signals;
+                        const controlSignals = data.control_signals;
+                        
+                        // Handle Control Signals
+                        controlSignals.forEach(signal => {
+                            handleBrailleSignal(signal);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error polling Braille signals:', error);
+                    });
+            }
+            
+            // Initial selection
+            updateSelection();
+            
+            // Poll Braille signals every 500ms
+            setInterval(pollBrailleSignals, 500);
+        });
+    </script>
 </body>
 </html>

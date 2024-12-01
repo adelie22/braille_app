@@ -1,155 +1,153 @@
 # blueprints/diary/routes.py
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, g, jsonify, Response, send_file
-from models import DiaryEntry
+from flask import render_template, jsonify, request, g, redirect, url_for, flash
 from extensions import db
-from google.cloud import texttospeech
-from datetime import datetime
-import os
-import json
+from models import DiaryEntry
+from flask import current_app
 import logging
+import threading
 
+# Import the Blueprint from __init__.py
 from . import diary_bp
 
-# Configure logging if not already done
-logging.basicConfig(level=logging.DEBUG)
-
-# Initialize Google TTS client
-tts_client = texttospeech.TextToSpeechClient()
-
 @diary_bp.route('/', methods=['GET'])
-def list_entries():
-    """ 
-    List all diary entries.
+def diary_home():
     """
-    entries = DiaryEntry.query.order_by(DiaryEntry.date.desc()).all()  # Updated field name
-    return render_template('diary/diary.html', entries=entries)
+    Render the diary home page with existing diary entries and a 'Create New Diary' option.
+    """
+    diaries = DiaryEntry.query.order_by(DiaryEntry.date.desc()).all()
+    return render_template('diary/diary.html', diaries=diaries)
+
+@diary_bp.route('/get_diaries', methods=['GET'])
+def get_diaries():
+    """
+    API endpoint to fetch all diary entries.
+    """
+    diaries = DiaryEntry.query.order_by(DiaryEntry.date.desc()).all()
+    diary_list = [{
+        'id': diary.id,
+        'date': diary.date.strftime('%Y-%m-%d %H:%M:%S'),
+        'content': diary.content
+    } for diary in diaries]
+    return jsonify({'diaries': diary_list}), 200
 
 @diary_bp.route('/create', methods=['POST'])
 def create_diary():
     """
-    Create a new diary entry.
+    API endpoint to create a new diary entry.
     """
-    data = request.get_json()
-    date_str = data.get('date')
-    content = data.get('content')
+    data = request.json
+    content = data.get('content', '').strip()
+    
+    if not content:
+        return jsonify({'error': 'Content cannot be empty.'}), 400
+    
+    new_diary = DiaryEntry(content=content)
+    db.session.add(new_diary)
+    db.session.commit()
+    
+    logging.info(f"New diary created with ID: {new_diary.id}")
+    
+    return jsonify({'message': 'Diary created successfully.'}), 201
 
-    if not date_str or not content:
-        return jsonify({'success': False, 'error': 'Missing date or content'}), 400
-
-    try:
-        # Parse the date to ensure correct format
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d')  # Updated variable name
-    except ValueError:
-        return jsonify({'success': False, 'error': 'Invalid date format. Use YYYY-MM-DD.'}), 400
-
-    try:
-        new_entry = DiaryEntry(date=date_obj, content=content)  # Updated field name
-        db.session.add(new_entry)
-        db.session.commit()
-        return jsonify({'success': True}), 200
-    except Exception as e:
-        db.session.rollback()
-        logging.error(f"Error creating diary entry: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@diary_bp.route('/delete/<int:id>', methods=['POST'])
-def delete_diary(id):
+@diary_bp.route('/revise/<int:diary_id>', methods=['POST'])
+def revise_diary(diary_id):
     """
-    Delete a diary entry by its ID.
+    API endpoint to revise an existing diary entry.
     """
-    try:
-        entry = DiaryEntry.query.get(id)
-        if not entry:
-            return jsonify({'success': False, 'error': 'Diary entry not found.'}), 404
+    diary = DiaryEntry.query.get_or_404(diary_id)
+    data = request.json
+    content = data.get('content', '').strip()
+    
+    if not content:
+        return jsonify({'error': 'Content cannot be empty.'}), 400
+    
+    diary.content = content
+    db.session.commit()
+    
+    logging.info(f"Diary ID {diary_id} revised.")
+    
+    return jsonify({'message': 'Diary revised successfully.'}), 200
 
-        db.session.delete(entry)
-        db.session.commit()
-        return jsonify({'success': True}), 200
-    except Exception as e:
-        db.session.rollback()
-        logging.error(f"Error deleting diary entry {id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@diary_bp.route('/content/<int:id>', methods=['GET'])
-def get_diary_content(id):
+@diary_bp.route('/delete/<int:diary_id>', methods=['DELETE'])
+def delete_diary(diary_id):
     """
-    Render a specific diary entry for viewing and editing.
+    API endpoint to delete an existing diary entry.
     """
-    entry = DiaryEntry.query.get(id)
-    if entry:
-        return render_template(
-            'diary/diary_content.html',
-            content=entry.content,
-            date=entry.date.strftime('%Y-%m-%d'),  # Updated field name
-            id=entry.id
-        )
-    else:
-        return jsonify({"error": "Diary entry not found"}), 404
+    diary = DiaryEntry.query.get_or_404(diary_id)
+    db.session.delete(diary)
+    db.session.commit()
+    
+    logging.info(f"Diary ID {diary_id} deleted.")
+    
+    return jsonify({'message': 'Diary deleted successfully.'}), 200
 
-@diary_bp.route('/update_content', methods=['POST'])
-def update_diary_content():
+@diary_bp.route('/read/<int:diary_id>', methods=['GET'])
+def read_diary(diary_id):
     """
-    Update the content of a diary entry.
+    API endpoint to get the content of a diary entry for reading via speech synthesis.
     """
-    data = request.get_json()
-    diary_id = data.get('id')
-    updated_content = data.get('content')
+    diary = DiaryEntry.query.get_or_404(diary_id)
+    return jsonify({'content': diary.content}), 200
 
-    if not diary_id or not updated_content:
-        return jsonify({'success': False, 'error': 'Missing id or content'}), 400
+# blueprints/diary/routes.py
 
-    try:
-        entry = DiaryEntry.query.get(diary_id)
-        if not entry:
-            return jsonify({'success': False, 'error': 'Diary entry not found.'}), 404
-
-        entry.content = updated_content
-        db.session.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        db.session.rollback()
-        logging.error(f"Error updating diary entry {diary_id}: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@diary_bp.route('/content_from_char', methods=['GET'])
-def get_content_from_char():
+@diary_bp.route('/get_braille_signals', methods=['GET'])
+def get_braille_signals():
     """
-    Get remaining content from a specific character index for speech synthesis.
+    API endpoint to fetch and return the latest Braille signals.
+    This endpoint should be polled by the frontend to receive signals.
     """
-    date_str = request.args.get('date')  # Diary date
-    char_index = request.args.get('char_index')  # Cursor character index
-
-    # Validate required parameters
-    if not date_str or char_index is None:
-        return jsonify({"error": "date and char_index parameters are required"}), 400
-
-    # Validate date format
-    try:
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d')  # Updated field name
-    except ValueError:
-        return jsonify({"error": "date must be in YYYY-MM-DD format"}), 400
-
-    # Convert char_index to integer
-    try:
-        char_index = int(char_index)
-    except ValueError:
-        return jsonify({"error": "char_index must be an integer"}), 400
-
-    entry = DiaryEntry.query.filter_by(date=date_obj).first()  # Updated field name
-    if entry:
-        content = entry.content
-        if 0 <= char_index < len(content):
-            remaining_content = content[char_index:].replace('\n', ' ')
-            return jsonify({"remaining_content": remaining_content})
+    signals = []
+    control_signals = []
+    
+    # Fetch all Braille inputs
+    input_buffer = g.keyboard.get_current_input_buffer()
+    if input_buffer:
+        for line in input_buffer:
+            if line.startswith('Braille Signal (6-bit):'):
+                # Extract the 6-bit string
+                bits = line.split(':')[-1].strip()
+                signals.append(bits)
+            else:
+                # Handle unexpected formats or log a warning
+                logging.warning(f"Unexpected input format: {line}")
+        # Clear the buffer after fetching
+        g.keyboard.clear_input_buffer()
+    
+    # Fetch all control signals
+    while True:
+        input_signal = g.keyboard.read_input()
+        if input_signal:
+            if input_signal['type'] == 'control':
+                control_signals.append(input_signal['data'])
+            else:
+                # Optionally handle other types
+                logging.warning(f"Unexpected input type: {input_signal}")
         else:
-            return jsonify({"error": f"Character index {char_index} is out of range. Valid range is 0 to {len(content)-1}"}), 400
-    else:
-        return jsonify({"error": "Diary entry not found"}), 404
+            break
+    
+    response = {
+        'braille_signals': signals,
+        'control_signals': control_signals
+    }
+    
+    return jsonify(response), 200
 
-@diary_bp.route('/index', methods=['GET'])
-def show_diary_page_detail():
+
+@diary_bp.route('/content', methods=['GET'])
+def diary_content():
     """
-    Render a different index page if needed.
+    Render the diary content page for creating or revising diary entries.
+    If a 'revise' query parameter is present, load the existing diary for revision.
     """
-    return render_template('index.html')  # Ensure 'index.html' exists in your main templates directory
+    revise_id = request.args.get('revise')
+    revise = False
+    if revise_id:
+        diary = DiaryEntry.query.get_or_404(int(revise_id))
+        content = diary.content
+        revise = True
+    else:
+        content = ''
+    
+    return render_template('diary/diary_content.html', revise=revise, diary_id=revise_id)

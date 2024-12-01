@@ -52,7 +52,7 @@ def create_app():
     # Home route
     @app.route('/')
     def home():
-        return "Welcome to the Braille App"
+        return render_template()
     app.register_blueprint(word_chain_api)
     app.register_blueprint(word_chain_en_api)
     @app.route('/')

@@ -1,349 +1,344 @@
 <!-- blueprints/diary/templates/diary/diary_content.html -->
 
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diary Entry - {{ date }}</title>
+    <title>Diary Content</title>
     <style>
+        /* Existing styles... */
         body {
-            font-family: 'Arial', sans-serif;
-            margin: 20px;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-
-        h1 {
-            text-align: center;
-            color: #000000;
-        }
-
-        .content {
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            font-family: Arial, sans-serif;
             padding: 20px;
-            line-height: 1.8;
-            font-size: 16px;
-            color: #333;
-            max-width: 800px;
-            margin: 20px auto;
+            background-color: #fffbe6;
+            text-align: center;
         }
-
-        .highlight {
-            background-color: rgb(0, 0, 0);
-            color: white;
-        }
-
-        textarea.edit-textarea {
-            width: 100%;
-            height: 400px;
+        #diary-content {
+            width: 60%;
+            height: 200px;
             padding: 10px;
             font-size: 16px;
-            border: 2px solid #000000;
+            border: 2px solid #ccc;
             border-radius: 5px;
-            transition: border-color 0.3s ease;
-            box-sizing: border-box;
-            resize: vertical;
+            margin: 20px auto;
+            text-align: left;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            position: relative;
+        }
+        #diary-content .cursor-highlight {
+            background-color: #e5e75f;
+            border: 2px solid #dde74d;
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+        #status-message {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: red;
         }
     </style>
 </head>
-
 <body>
-    <h1>{{ date }}의 다이어리</h1>
-    <div class="content" id="diaryContent">
-        {{ content }}
-    </div>
-
-    <!-- JavaScript for interactivity and accessibility -->
+    <h1>{{ 'Revise Diary' if revise else 'Create New Diary' }}</h1>
+    
+    <!-- Diary Content Display -->
+    <div id="diary-content" tabindex="0" aria-label="Diary Content"></div>
+    
+    <!-- Status Message -->
+    <div id="status-message" aria-live="polite"></div>
+    
+    <!-- External JavaScript -->
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            let contentElement = document.getElementById('diaryContent');
-            let originalText = contentElement.innerText;  // Full diary text
-            let currentIndex = 0;  // Current cursor position
-            let isEditMode = false;  // Flag to check edit mode
-            const diaryId = "{{ id }}";  // Current diary ID
-            let characters = []; // Array to hold character elements
-            let isSpeaking = false; // Flag to check if speech is ongoing
-            let currentUtterance = null; // Current speech synthesis utterance
-            let speakingEndIndex = null; // Position where speech ends
+        document.addEventListener('DOMContentLoaded', function () {
+            // 1. Variable Declarations
+            let cursorPosition = 0;
+            let content = '';
+            let diaryId = null; // If revising, the ID of the diary entry
+            
+            const diaryContentDiv = document.getElementById('diary-content');
+            const statusMessage = document.getElementById('status-message');
+            
+            // Speech synthesis control
+            let isSpeaking = false;
 
-            // Function to speak mode changes
-            function speakModeChange(mode, callback = null) {
-                window.speechSynthesis.cancel();  // Cancel ongoing speech
-                setTimeout(() => {
-                    const utterance = new SpeechSynthesisUtterance(mode);
-                    utterance.lang = 'ko-KR';  // Korean language
-                    window.speechSynthesis.speak(utterance);
+            // 2. URL Parameters Parsing
+            const urlParams = new URLSearchParams(window.location.search);
 
-                    // Execute callback after speech ends
-                    if (callback) {
-                        utterance.onend = callback;
-                    }
-                }, 50);
-            }
+            // 3. Function Definitions
 
-            // Function to wrap text in spans for individual character highlighting
-            function wrapTextWithSpans(text) {
-                return [...text].map(char => `<span class="char">${char}</span>`).join('');
-            }
-
-            // Initialize characters and apply highlight
-            function initializeCharacters() {
-                contentElement.innerHTML = wrapTextWithSpans(originalText);
-                characters = document.querySelectorAll('.char');
-
-                // Apply highlight to the first character
-                currentIndex = 0;
-                if (characters.length > 0) {
-                    applyHighlight(currentIndex);
-                }
-            }
-
-            // Apply highlight to a specific character
-            function applyHighlight(index) {
-                clearAllHighlights();
-                if (characters[index]) {
-                    characters[index].classList.add('highlight');
-                    characters[index].scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }
-
-            // Remove all highlights
-            function clearAllHighlights() {
-                characters.forEach(char => char.classList.remove('highlight'));
-            }
-
-            // Initialize on page load
-            initializeCharacters();
-
-            // Handle keyboard navigation and speech
-            document.addEventListener('keydown', (e) => {
-                if (isEditMode) {
-                    return;  // Do nothing in edit mode
-                }
-
-                // Ctrl + Backspace to navigate back
-                if (e.key === 'Backspace' && e.ctrlKey) {
-                    window.location.href = "/diary/";  // Navigate back to diary list
-                    return;
-                }
-
-                // Cancel ongoing speech if any key is pressed except Enter
-                if (isSpeaking && e.key !== 'Enter') {
+            // Function to speak messages
+            function speakMessage(message) {
+                console.log('Speaking message:', message);
+                if (isSpeaking) {
                     window.speechSynthesis.cancel();
-                    isSpeaking = false;
                 }
-
-                // Remove highlight from current character
-                clearAllHighlights();
-
-                if (e.key === 'ArrowRight') {
-                    if (currentIndex < characters.length - 1) {
-                        currentIndex++;
-                    }
-                } else if (e.key === 'ArrowLeft') {
-                    if (currentIndex > 0) {
-                        currentIndex--;
-                    }
-                } else if (e.key === 'ArrowDown') {
-                    let nextLineIndex = getNextLineStartIndex(currentIndex, 1);
-                    if (nextLineIndex !== -1) {
-                        currentIndex = nextLineIndex;
-                    }
-                } else if (e.key === 'ArrowUp') {
-                    let previousLineIndex = getNextLineStartIndex(currentIndex, -1);
-                    if (previousLineIndex !== -1) {
-                        currentIndex = previousLineIndex;
-                    }
-                } else if (e.key === 'Enter' && e.ctrlKey) {
-                    // Ctrl + Enter to enter edit mode
-                    if (!isEditMode) {
-                        enterEditMode(currentIndex);
-                    }
-                    return;  // Prevent default behavior
-                } else if (e.key === 'Enter') {
-                    if (isSpeaking) {
-                        // If speaking, cancel the speech
-                        window.speechSynthesis.cancel();
-                        isSpeaking = false;
-
-                        // Apply highlight to the last read character
-                        if (speakingEndIndex !== null) {
-                            currentIndex = Math.min(speakingEndIndex, characters.length - 1);
-                            applyHighlight(currentIndex);
-                        }
-                    } else {
-                        // Start speaking from the current index
-                        speakTextFromIndex(currentIndex);
-                    }
-                    return;  // Prevent default behavior
-                }
-
-                // Apply highlight to the new character
-                applyHighlight(currentIndex);
-                speakCharacter(characters[currentIndex].innerText);
-            });
-
-            // Function to speak a single character
-            function speakCharacter(character) {
-                window.speechSynthesis.cancel();
-                setTimeout(() => {
-                    const utterance = new SpeechSynthesisUtterance(character);
-                    utterance.lang = 'ko-KR';
-                    window.speechSynthesis.speak(utterance);
-                }, 100);
+                const utterance = new SpeechSynthesisUtterance(message);
+                utterance.lang = 'en-US';
+                utterance.onstart = () => { isSpeaking = true; };
+                utterance.onend = () => { isSpeaking = false; };
+                window.speechSynthesis.speak(utterance);
+                
+                // Update status message
+                statusMessage.textContent = message;
             }
 
-            // Function to speak text starting from a specific index
-            function speakTextFromIndex(index) {
-                window.speechSynthesis.cancel();  // Stop any ongoing speech
-
-                let remainingText = '';
-                for (let i = index; i < characters.length; i++) {
-                    remainingText += characters[i].innerText;
-                }
-
-                const utterance = new SpeechSynthesisUtterance(remainingText);
-                utterance.lang = 'ko-KR';
-                isSpeaking = true;
-                currentUtterance = utterance;
-
-                // Update speakingEndIndex based on speech progress
-                utterance.onboundary = (event) => {
-                    if (event.charIndex !== undefined) {
-                        speakingEndIndex = index + event.charIndex;
-                    }
-                };
-
-                // Handle end of speech
-                utterance.onend = () => {
-                    isSpeaking = false;
-                    if (speakingEndIndex !== null) {
-                        currentIndex = Math.min(speakingEndIndex, characters.length - 1);
-                        applyHighlight(currentIndex);
-                    }
-                };
-
-                // Start speaking after a slight delay
-                setTimeout(() => {
-                    window.speechSynthesis.speak(utterance);
-                }, 50);
+            // Function to render the diary content with cursor highlight
+            function renderContent() {
+                diaryContentDiv.innerHTML = '';
+                const beforeCursor = content.slice(0, cursorPosition);
+                const afterCursor = content.slice(cursorPosition);
+                
+                const beforeNode = document.createTextNode(beforeCursor);
+                const cursorSpan = document.createElement('span');
+                cursorSpan.classList.add('cursor-highlight');
+                cursorSpan.textContent = afterCursor.charAt(0) || '';
+                const afterNode = document.createTextNode(afterCursor.slice(1));
+                
+                diaryContentDiv.appendChild(beforeNode);
+                diaryContentDiv.appendChild(cursorSpan);
+                diaryContentDiv.appendChild(afterNode);
+                
+                diaryContentDiv.scrollTop = diaryContentDiv.scrollHeight;
             }
 
-            // Function to find the start index of the next or previous line
-            function getNextLineStartIndex(currentIndex, direction) {
-                const currentElement = characters[currentIndex];
-                const currentTop = currentElement.getBoundingClientRect().top;
-
-                let newIndex = currentIndex;
-                while (newIndex >= 0 && newIndex < characters.length) {
-                    newIndex += direction;
-                    if (newIndex < 0 || newIndex >= characters.length) {
-                        return -1;
-                    }
-                    const newElement = characters[newIndex];
-                    const newTop = newElement.getBoundingClientRect().top;
-
-                    if (newTop !== currentTop) {
-                        // Move to the start of the new line
-                        while (newIndex > 0 && characters[newIndex - 1].getBoundingClientRect().top === newTop) {
-                            newIndex--;
-                        }
-                        return newIndex;
-                    }
-                }
-                return -1;
-            }
-
-            // Function to enter edit mode
-            function enterEditMode(startIndex) {
-                isEditMode = true;
-
-                speakModeChange('입력모드');  // Announce mode change
-
-                // Replace content with a textarea for editing
-                const textarea = document.createElement('textarea');
-                textarea.classList.add('edit-textarea');
-                textarea.value = originalText;
-                contentElement.replaceWith(textarea);
-
-                textarea.focus();
-                textarea.setSelectionRange(startIndex, startIndex); // Set cursor position
-
-                // Handle key events in the textarea
-                textarea.addEventListener('keydown', (e) => {
-                    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
-                        setTimeout(() => {
-                            let cursorPosition = textarea.selectionStart;
-                            let character = textarea.value[cursorPosition - 1] || '';
-                            speakCharacter(character);
-                        }, 50);
-                    } else if (e.key === ' ') {
-                        let cursorPosition = textarea.selectionStart;
-                        if (cursorPosition > 0) {
-                            const textUpToCursor = textarea.value.slice(0, cursorPosition);
-                            const words = textUpToCursor.trim().split(' ');
-                            if (words.length > 0) {
-                                const lastWord = words[words.length - 1];
-                                speakWord(lastWord);
-                            }
-                        }
-                    } else if (e.key === 'Enter' && e.ctrlKey) {
-                        // Ctrl + Enter to save changes
-                        speakModeChange('탐색모드', () => {
-                            saveContentAndReload(textarea.value);
-                        });
-                    } else if (e.key === 'Escape') {
-                        // Escape to cancel editing
-                        speakModeChange('탐색모드', () => {
-                            textarea.replaceWith(contentElement);
-                            isEditMode = false;
-
-                            // Re-initialize characters and highlight
-                            contentElement = document.getElementById('diaryContent');
-                            initializeCharacters();
-                        });
-                    }
-                });
-            }
-
-            // Function to save edited content and reload the page
-            function saveContentAndReload(updatedContent) {
-                fetch('/diary/update_content', {  // Ensure this URL matches your Flask route
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        id: diaryId, // Use the diary ID for updating
-                        content: updatedContent
-                    })
-                }).then(response => response.json())
+            // Function to fetch existing diary content for revision
+            function fetchDiaryContent(id) {
+                fetch(`/diary/read/${id}`)
+                    .then(response => response.json())
                     .then(data => {
-                        if (data.success) {
-                            // Reload the page to reflect changes
-                            location.reload();
-                        } else {
-                            console.error('저장 실패 이유:', data.error);
-                            alert('내용을 저장하는데 실패했습니다: ' + data.error);
+                        if (data.content) {
+                            content = data.content;
+                            cursorPosition = content.length;
+                            renderContent();
+                            speakMessage('Diary loaded for revision.');
                         }
-                    }).catch(error => {
-                        console.error('저장 중 오류 발생:', error);
-                        alert('저장 중 오류가 발생했습니다. 다시 시도해 주세요.');
+                    })
+                    .catch(error => {
+                        console.error('Error fetching diary content:', error);
+                        speakMessage('Failed to load diary for revision.');
                     });
             }
 
-            // Function to speak a full word
-            function speakWord(word) {
-                window.speechSynthesis.cancel();
-                setTimeout(() => {
-                    const utterance = new SpeechSynthesisUtterance(word);
-                    utterance.lang = 'ko-KR';
-                    window.speechSynthesis.speak(utterance);
-                }, 100);
+            // Function to initialize content for creating a new diary
+            function initializeContent() {
+                if (!diaryId) {
+                    content = '';
+                    cursorPosition = 0;
+                    renderContent();
+                    speakMessage('Create New Diary. Start typing.');
+                }
             }
+
+            // Function to handle Braille Keyboard Signals
+            function handleBrailleSignal(signal) {
+                console.log('Received signal:', signal);
+                switch(signal) {
+                    case 'Left':
+                        moveCursorLeft();
+                        break;
+                    case 'Right':
+                        moveCursorRight();
+                        break;
+                    case 'Back':
+                        deleteCharacter();
+                        break;
+                    case 'Ctrl+Backspace':
+                        navigateToMenu();
+                        break;
+                    case 'Ctrl+Space':
+                        readBeforeCursor();
+                        break;
+                    case 'Space':
+                        insertCharacter(' ');
+                        break;
+                    case 'Ctrl+Enter':
+                        saveDiary();
+                        break;
+                    default:
+                        // Assume any other signal is a character input
+                        insertCharacter(signal);
+                }
+            }
+
+            // Function to move cursor to the left
+            function moveCursorLeft() {
+                if (cursorPosition > 0) {
+                    cursorPosition--;
+                    renderContent();
+                    speakMessage(`Cursor moved to position ${cursorPosition + 1}`);
+                } else {
+                    speakMessage('Already at the beginning.');
+                }
+            }
+
+            // Function to move cursor to the right
+            function moveCursorRight() {
+                if (cursorPosition < content.length) {
+                    cursorPosition++;
+                    renderContent();
+                    speakMessage(`Cursor moved to position ${cursorPosition + 1}`);
+                } else {
+                    speakMessage('Already at the end.');
+                }
+            }
+
+            // Function to delete character at cursor
+            function deleteCharacter() {
+                if (cursorPosition > 0 && content.length > 0) {
+                    content = content.slice(0, cursorPosition - 1) + content.slice(cursorPosition);
+                    cursorPosition--;
+                    renderContent();
+                    speakMessage('Character deleted.');
+                } else {
+                    speakMessage('Nothing to delete.');
+                }
+            }
+
+            // Function to insert character at cursor
+            function insertCharacter(char) {
+                content = content.slice(0, cursorPosition) + char + content.slice(cursorPosition);
+                cursorPosition++;
+                renderContent();
+                speakMessage(`Inserted ${char === ' ' ? 'space' : char}`);
+            }
+
+            // Function to read text before the cursor
+            function readBeforeCursor() {
+                const textToRead = content.slice(0, cursorPosition);
+                if (textToRead) {
+                    speakMessage(`Text before cursor: ${textToRead}`);
+                } else {
+                    speakMessage('No text before cursor.');
+                }
+            }
+
+            // Function to navigate back to the diary menu
+            function navigateToMenu() {
+                speakMessage('Returning to the diary menu.');
+                window.location.href = '/diary';
+            }
+
+            // Function to save the diary entry
+            function saveDiary() {
+                if (content.trim() === '') {
+                    speakMessage('Cannot save empty diary.');
+                    return;
+                }
+                
+                const endpoint = diaryId ? `/diary/revise/${diaryId}` : `/diary/create`;
+                fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content: content }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        speakMessage(data.message);
+                        window.location.href = '/diary';
+                    } else if (data.error) {
+                        speakMessage(data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving diary:', error);
+                    speakMessage('Failed to save diary.');
+                });
+            }
+
+            // Function to translate Braille bits to characters
+            function translateBraille(bits) {
+                // Check if the string contains the descriptive format
+                if (bits.startsWith('Braille Signal (6-bit):')) {
+                    // Extract the 6-bit string
+                    bits = bits.split(':')[-1].trim();
+                }
+
+                const brailleDict = {
+                    '000001': 'a',
+                    '000011': 'b',
+                    '001001': 'c',
+                    '011001': 'd',
+                    '010001': 'e',
+                    '001011': 'f',
+                    '011011': 'g',
+                    '010011': 'h',
+                    '001010': 'i',
+                    '011010': 'j',
+                    '000101': 'k',
+                    '000111': 'l',
+                    '001101': 'm',
+                    '011101': 'n',
+                    '010101': 'o',
+                    '001111': 'p',
+                    '011111': 'q',
+                    '010111': 'r',
+                    '001110': 's',
+                    '011110': 't',
+                    '100101': 'u',
+                    '100111': 'v',
+                    '110010': 'w',
+                    '101101': 'x',
+                    '111101': 'y',
+                    '110101': 'z',
+                    '000000': ' ', // Space
+                };
+                return brailleDict[bits] || '';
+            }
+
+            // Function to poll Braille signals from the backend
+            function pollBrailleSignals() {
+                console.log('Polling for Braille signals...');
+                fetch('/diary/get_braille_signals')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        const brailleSignals = data.braille_signals;
+                        const controlSignals = data.control_signals;
+                        
+                        // Handle Braille Signals (Character Inputs)
+                        brailleSignals.forEach(bits => {
+                            const char = translateBraille(bits);
+                            if (char) {
+                                console.log(`Received character: ${char}`);
+                                insertCharacter(char);
+                            } else {
+                                console.warn(`Unrecognized Braille bits: ${bits}`);
+                            }
+                        });
+                        
+                        // Handle Control Signals
+                        controlSignals.forEach(signal => {
+                            handleBrailleSignal(signal);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error polling Braille signals:', error);
+                    });
+            }
+
+            // 4. Initial Function Calls
+
+            // Determine if we're revising an existing diary entry
+            if (urlParams.has('revise')) {
+                diaryId = urlParams.get('revise');
+                fetchDiaryContent(diaryId);
+            } else {
+                initializeContent();
+            }
+
+            // Start polling Braille signals every 500ms
+            setInterval(pollBrailleSignals, 500);
+
+            // Optionally, focus the diary-content div to ensure it's ready for input
+            diaryContentDiv.focus();
         });
     </script>
 </body>
