@@ -205,3 +205,19 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
             else:
                 self.cursor_position = 0
                 logging.debug("Cursor position adjusted to start (0).")
+#====================led관련 추가==================
+    def send_led_command(self, led_numbers, action='ON'):
+        """
+        Sends LED control commands to Arduino.
+        led_numbers: list of LED numbers (e.g., [1, 2, 3])
+        action: 'ON' or 'OFF'
+        """
+        if self.serial_port and self.serial_port.is_open:
+            command = f"{action}:{','.join(map(str, led_numbers))}\n"
+            try:
+                self.serial_port.write(command.encode())
+                logging.debug(f"Sent LED command via serial: {command.strip()}")
+            except Exception as e:
+                logging.error(f"Failed to send LED command: {e}")
+        else:
+            logging.error("Serial port is not open. Cannot send LED command.")

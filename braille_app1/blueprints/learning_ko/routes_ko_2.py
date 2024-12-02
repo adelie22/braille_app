@@ -13,7 +13,7 @@ from google.cloud import texttospeech
 import os
 import logging
 import hashlib
-
+from interfaces.hardware_keyboard import HardwareBrailleKeyboard
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -25,34 +25,9 @@ logging.basicConfig(level=logging.DEBUG)
 import serial
 import time
 from threading import Timer
+from threading import Lock
 
-# 시리얼 포트 설정 (예: 'COM3' 또는 '/dev/ttyACM0')
-SERIAL_PORT = '/dev/ttyACM0'  # 실제 연결된 포트로 변경
-BAUD_RATE = 9600
 
-# 시리얼 포트 초기화 (애플리케이션 시작 시 한 번만 실행)
-try:
-    ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
-    time.sleep(2)  # Arduino 리셋 대기
-except Exception as e:
-    ser = None
-    current_app.logger.error(f"시리얼 포트 연결 실패: {e}")
-
-def send_led_command(led_numbers, action='ON'):
-    """
-    Arduino로 LED 제어 명령을 전송합니다.
-    led_numbers: 리스트 형태의 LED 번호 (예: [1,2,3])
-    action: 'ON' 또는 'OFF'
-    """
-    if ser and ser.is_open:
-        command = f"{action}:{','.join(map(str, led_numbers))}\n"
-        try:
-            ser.write(command.encode())
-            current_app.logger.debug(f"시리얼로 전송된 명령: {command.strip()}")
-        except Exception as e:
-            current_app.logger.error(f"시리얼 전송 오류: {e}")
-    else:
-        current_app.logger.error("시리얼 포트가 열려 있지 않습니다.")
 #===========================LED관련==================================================
 
 
@@ -453,29 +428,27 @@ def handle_enter_signal():
                 # 예를 들어, TTS로 변환할 때 사용
                 feedback_audio_url = generate_feedback_audio(feedback_text, 'wrong_feedback.mp3')
 
+                 # LED 번호 추출 및 정렬
                 led_numbers = set()
                 for dots in braille_feedback:
                     led_numbers.update(dots)
                 led_numbers = sorted(led_numbers)
-                led_command_on = led_numbers  # 예: [1,2,3]
 
                 # LED 켜기 명령 전송
-                send_led_command(led_command_on, action='ON')
+                g.keyboard.send_led_command(led_numbers, action='ON')
 
                 # 오디오 길이에 맞춰 LED 끄기 (예: 2초 후)
-                Timer(2.0, send_led_command, args=(led_numbers, 'OFF')).start()
-    
-                
-    
-                # 세션에 피드백 텍스트 저장 (필요시)
+                Timer(2.0, g.keyboard.send_led_command, args=(led_numbers, 'OFF')).start()
+
+                # 세션에 피드백 텍스트 저장
                 if feedback_audio_url:
                     session['feedback_audio_url'] = feedback_audio_url
-    
+
                 # 피드백 텍스트를 로그 또는 다른 용도로 사용
                 logging.debug(f"Feedback Text: {feedback_text}")
-    
-                # 템플릿 렌더링 시 피드백 텍스트 전달 (필요시)
+
                 return redirect(url_for('learning_ko.index'))
+
 
 
     else:

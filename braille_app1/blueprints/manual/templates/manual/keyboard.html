@@ -1,127 +1,248 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>키보드 키 음성 출력화면입니다.</title>
+    <title>Keyboard Manual</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
             padding: 50px;
-            background-color: #f4f4f4;
+            background-color: #f0f0f0;
         }
 
         h1 {
-            color: #000;
-            font-size: 60px;
+            color: #333;
+            font-size: 50px;
+            margin-bottom: 40px;
         }
 
-        #selection {
+        .instruction {
+            font-size: 24px;
+            color: #555;
+            margin: 20px 0;
+        }
+
+        .button-container {
             display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px; /* Space between rows */
             margin-top: 30px;
         }
 
-        button {
-            width: 100px;
-            height: 100px;
-            border: 2px solid #000;
-            border-radius: 10px;
-            background-color: #fff;
-            font-size: 30px;
-            font-weight: 800;
-            color: #000;
-            cursor: pointer;
-            transition: background-color 0.3s, color 0.3s;
-            outline: none;
-            padding: 20px;
+        .button-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
         }
 
-        .selected {
-            background-color: #000;
+        .button {
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: default;
+            border: none;
+            border-radius: 5px;
+            background-color: #007BFF;
+            color: white;
+            transition: background-color 0.3s ease, transform 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        .button:hover {
+            background-color: #0056b3;
+        }
+
+        .button.active {
+            background-color: #28a745 !important;
+            transform: scale(1.05);
+        }
+
+        .label {
+            display: block;
+            margin-top: 10px;
+            font-size: 16px;
             color: #fff;
-            transform: scale(1.1);
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Optional: Error message styling */
+        #error-message {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
     </style>
 </head>
 
 <body>
-    <h1>키보드 키 음성 출력화면입니다.</h1>
-    <div id="selection">
-        <button id="left" data-signal="Left">Left</button>
-        <button id="button1" data-signal="000001">Button 1</button>
-        <button id="button2" data-signal="000010">Button 2</button>
-        <button id="button3" data-signal="000100">Button 3</button>
-        <button id="button4" data-signal="001000">Button 4</button>
-        <button id="button5" data-signal="010000">Button 5</button>
-        <button id="button6" data-signal="100000">Button 6</button>
-    </div>
+    <header>
+        <h1>Keyboard Manual</h1>
+        <div class="instruction">Press buttons on your Braille keyboard to hear their functions.</div>
+        <div class="button-container">
+            <!-- First Row: Button 3, Button 2, Button 1, Button 4, Button 5, Button 6, Backspace -->
+            <div class="button-row">
+                <button class="button" id="button3-btn">Button 3</button>
+                <button class="button" id="button2-btn">Button 2</button>
+                <button class="button" id="button1-btn">Button 1</button>
+                <button class="button" id="button4-btn">Button 4</button>
+                <button class="button" id="button5-btn">Button 5</button>
+                <button class="button" id="button6-btn">Button 6</button>
+                <button class="button" id="backspace-btn">Backspace</button>
+            </div>
+
+            <!-- Second Row: Up Button -->
+            <div class="button-row">
+                <button class="button" id="up-btn">Up</button>
+            </div>
+
+            <!-- Third Row: Control, Space, Enter, Left, Down, Right -->
+            <div class="button-row">
+                <button class="button" id="control-btn">Control</button>
+                <button class="button" id="space-btn">Space</button>
+                <button class="button" id="enter-btn">Enter</button>
+                <button class="button" id="left-btn">Left</button>
+                <button class="button" id="down-btn">Down</button>
+                <button class="button" id="right-btn">Right</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Optional: Error message container -->
+    <div id="error-message"></div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", () => {
-            const buttons = document.querySelectorAll("#selection button");
+        // Mapping of signals to spoken messages
+        const signalToMessage = {
+            // Control Signals
+            'Ctrl': 'Control',
+            'Left': 'Left',
+            'Right': 'Right',
+            'Up': 'Up',
+            'Down': 'Down',
+            'Enter': 'Enter',
+            'Back': 'Backspace', // Ensure this matches the backend signal
+            'Space': 'Space',
 
-            // Function to handle button press and play voice message
-            function handleBrailleSignal(signal) {
-                let message = '';
-                switch(signal) {
-                    case 'Left':
-                        message = 'Left';
-                        break;
-                    case '000001':
-                        message = 'Button 1';
-                        break;
-                    case '000010':
-                        message = 'Button 2';
-                        break;
-                    case '000100':
-                        message = 'Button 3';
-                        break;
-                    case '001000':
-                        message = 'Button 4';
-                        break;
-                    case '010000':
-                        message = 'Button 5';
-                        break;
-                    case '100000':
-                        message = 'Button 6';
-                        break;
-                    default:
-                        message = 'Unknown Signal';
-                }
+            // Braille Signals
+            '000001': 'Button 1',
+            '000010': 'Button 2',
+            '000100': 'Button 3',
+            '001000': 'Button 4',
+            '010000': 'Button 5',
+            '100000': 'Button 6'
+        };
+
+        // Function to speak a given message
+        function speakMessage(message) {
+            window.speechSynthesis.cancel(); // Stop any ongoing speech
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(message);
+                // Set language based on your preference
+                // For Korean, use 'ko-KR'
+                // For English, use 'en-US'
+                utterance.lang = 'en-US'; // Change as needed
+                utterance.rate = 1;
+                window.speechSynthesis.speak(utterance);
+            }, 100); // Slight delay to ensure previous speech is canceled
+        }
+
+        // Function to handle received signals
+        function handleSignal(signal) {
+            const message = signalToMessage[signal];
+            if (message) {
                 speakMessage(message);
+                highlightButton(message);
+            } else {
+                console.warn(`Unrecognized signal: ${signal}`);
+                displayError(`Unrecognized signal: ${signal}`);
             }
+        }
 
-            // Function to speak messages using Speech Synthesis
-            function speakMessage(message) {
-                window.speechSynthesis.cancel();
+        // Function to highlight the corresponding button
+        function highlightButton(message) {
+            // Map message to button IDs
+            const messageToButtonId = {
+                'Control': 'control-btn',
+                'Left': 'left-btn',
+                'Right': 'right-btn',
+                'Up': 'up-btn',
+                'Down': 'down-btn',
+                'Enter': 'enter-btn',
+                'Backspace': 'backspace-btn',
+                'Space': 'space-btn',
+                'Button 1': 'button1-btn',
+                'Button 2': 'button2-btn',
+                'Button 3': 'button3-btn',
+                'Button 4': 'button4-btn',
+                'Button 5': 'button5-btn',
+                'Button 6': 'button6-btn'
+            };
+
+            const buttonId = messageToButtonId[message];
+            if (buttonId) {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    button.classList.add('active');
+                    setTimeout(() => {
+                        button.classList.remove('active');
+                    }, 500); // Highlight duration
+                }
+            }
+        }
+
+        // Function to display error messages
+        function displayError(message) {
+            const errorDiv = document.getElementById('error-message');
+            if (errorDiv) {
+                errorDiv.textContent = message;
+                errorDiv.style.display = 'block';
                 setTimeout(() => {
-                    const utterance = new SpeechSynthesisUtterance(message);
-                    utterance.lang = 'ko-KR';
-                    window.speechSynthesis.speak(utterance);
-                }, 100); 
+                    errorDiv.style.display = 'none';
+                }, 3000); // Display for 3 seconds
             }
+        }
 
-            // Poll Braille control signals every 500ms
-            function pollBrailleSignals() {
-                fetch('/index/get_buffer')  // Backend endpoint to get input buffer and control signal
-                    .then(response => response.json())
-                    .then(data => {
-                        const controlSignal = data.control_signal;
-                        if (controlSignal) {
-                            handleBrailleSignal(controlSignal); // Handle Braille signal if available
-                        }
-                    })
-                    .catch(error => console.error('Error fetching Braille signals:', error));
-            }
+        // Function to poll Braille signals from the server
+        function pollBrailleSignals() {
+            fetch('/manual/keyboard/get_braille_signals')
+                .then(response => response.json())
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    const brailleSignals = data.braille_signals;
 
-            // Start polling for Braille signals when the page loads
-            setInterval(pollBrailleSignals, 500);  // Poll every 500ms
+                    // Handle Control Signals
+                    controlSignals.forEach(signal => {
+                        handleSignal(signal);
+                    });
+
+                    // Handle Braille Signals
+                    brailleSignals.forEach(signal => {
+                        handleSignal(signal);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error polling Braille signals:', error);
+                    displayError('Error polling Braille signals.');
+                });
+        }
+
+        // Initial setup
+        document.addEventListener('DOMContentLoaded', () => {
+            // Optionally, you can have an initial welcome message
+            speakMessage("Keyboard manual is active.");
+            setInterval(pollBrailleSignals, 500); // Poll every 500ms
         });
     </script>
 </body>
+
 </html>
