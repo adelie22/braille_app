@@ -33,3 +33,4 @@ def get_braille_signals():
     logging.debug(f"Index Blueprint - Sending response: {response}")  # Debugging
     
     return jsonify(response), 200
+

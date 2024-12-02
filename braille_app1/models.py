@@ -1,6 +1,7 @@
 # models.py
 
 from extensions import db
+from datetime import datetime
 
 class EnGrade1(db.Model):
     __tablename__ = 'en_grade1'

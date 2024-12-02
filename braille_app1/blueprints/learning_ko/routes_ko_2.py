@@ -18,6 +18,44 @@ import hashlib
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
+
+
+# routes.py 또는 적절한 위치에 추가
+#===========================LED관련==================================================
+import serial
+import time
+from threading import Timer
+
+# 시리얼 포트 설정 (예: 'COM3' 또는 '/dev/ttyACM0')
+SERIAL_PORT = '/dev/ttyACM0'  # 실제 연결된 포트로 변경
+BAUD_RATE = 9600
+
+# 시리얼 포트 초기화 (애플리케이션 시작 시 한 번만 실행)
+try:
+    ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+    time.sleep(2)  # Arduino 리셋 대기
+except Exception as e:
+    ser = None
+    current_app.logger.error(f"시리얼 포트 연결 실패: {e}")
+
+def send_led_command(led_numbers, action='ON'):
+    """
+    Arduino로 LED 제어 명령을 전송합니다.
+    led_numbers: 리스트 형태의 LED 번호 (예: [1,2,3])
+    action: 'ON' 또는 'OFF'
+    """
+    if ser and ser.is_open:
+        command = f"{action}:{','.join(map(str, led_numbers))}\n"
+        try:
+            ser.write(command.encode())
+            current_app.logger.debug(f"시리얼로 전송된 명령: {command.strip()}")
+        except Exception as e:
+            current_app.logger.error(f"시리얼 전송 오류: {e}")
+    else:
+        current_app.logger.error("시리얼 포트가 열려 있지 않습니다.")
+#===========================LED관련==================================================
+
+
 # Path to your Braille translation table
 # BRAILLE_TABLE = "/home/guru/liblouis-3.21.0/tables/en-us-g1.ctb"
 
@@ -44,11 +82,7 @@ def braille_number_to_dots(number):
     return []
 
 def generate_braille_buttons_feedback(word):
-    """
-    주어진 한국어 단어의 각 글자에 대해 필요한 점자 버튼 조합을 생성하고,
-    이를 사람이 이해하기 쉬운 형식의 문자열로 반환합니다.
-    예: "Press 1,3 for 가, 2,5,6 for 나"
-    """
+
     braille_buttons_feedback = []
     
     # 1. 한국어 단어를 점자 유니코드로 번역
@@ -64,18 +98,6 @@ def generate_braille_buttons_feedback(word):
     braille_buttons_feedback = [braille_number_to_dots(num) for num in braille_numbers[:-1]]
     
     return braille_buttons_feedback
-
-# def get_braille_buttons(braille_char):
-#     """
-#     점자 문자를 해당하는 점자 버튼(1~6번) 조합의 문자열로 변환합니다.
-#     예: '⠃' (점자 번호 3) -> "1,3"
-#     """
-#     braille_value = ord(braille_char) - 0x2800  # 점자 유니코드에서 번호 추출
-#     dots = braille_number_to_dots(braille_value)  # 점자 번호를 점자 버튼 리스트로 변환
-#     if dots:
-#         return ",".join(map(str, dots))
-#     return ""
-
 
 def get_audio_path(text, audio_type='feedback'):
     """
@@ -426,10 +448,24 @@ def handle_enter_signal():
     
                 # 피드백 텍스트 생성
                 feedback_text = f"오답입니다. '{target_word}' 는 '{formatted_braille_feedback}' 입니다."
-    
+
                 # 음성 출력용 피드백 텍스트 설정 (필요시)
                 # 예를 들어, TTS로 변환할 때 사용
                 feedback_audio_url = generate_feedback_audio(feedback_text, 'wrong_feedback.mp3')
+
+                led_numbers = set()
+                for dots in braille_feedback:
+                    led_numbers.update(dots)
+                led_numbers = sorted(led_numbers)
+                led_command_on = led_numbers  # 예: [1,2,3]
+
+                # LED 켜기 명령 전송
+                send_led_command(led_command_on, action='ON')
+
+                # 오디오 길이에 맞춰 LED 끄기 (예: 2초 후)
+                Timer(2.0, send_led_command, args=(led_numbers, 'OFF')).start()
+    
+                
     
                 # 세션에 피드백 텍스트 저장 (필요시)
                 if feedback_audio_url:

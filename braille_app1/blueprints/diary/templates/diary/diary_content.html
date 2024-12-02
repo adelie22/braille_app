@@ -6,44 +6,105 @@
     <meta charset="UTF-8">
     <title>Diary Content</title>
     <style>
-        /* Existing styles... */
+        /* Enhanced Styles */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             padding: 20px;
             background-color: #fffbe6;
             text-align: center;
         }
-        #diary-content {
-            width: 60%;
-            height: 200px;
-            padding: 10px;
-            font-size: 16px;
-            border: 2px solid #ccc;
-            border-radius: 5px;
-            margin: 20px auto;
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 36px;
+        }
+        /* Diary Content Container */
+        #diary-content-container {
+            max-width: 800px;
+            margin: 0 auto;
             text-align: left;
+            position: relative;
+        }
+        /* Diary Content Display */
+        #diary-content {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid #ccc;
+            border-radius: 8px;
+            background-color: #fefefe;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             overflow-y: auto;
             white-space: pre-wrap;
             position: relative;
+            transition: border-color 0.3s, box-shadow 0.3s;
         }
+        #diary-content:focus {
+            border-color: #1e90ff;
+            box-shadow: 0 4px 12px rgba(30, 144, 255, 0.3);
+            outline: none;
+        }
+        /* Cursor Highlight */
         #diary-content .cursor-highlight {
             background-color: #e5e75f;
             border: 2px solid #dde74d;
             border-radius: 4px;
             padding: 2px 4px;
+            animation: blink 1s step-start infinite;
         }
+        /* Blinking Cursor Animation */
+        @keyframes blink {
+            50% {
+                opacity: 0;
+            }
+        }
+        /* Status Message */
         #status-message {
             margin-top: 20px;
             font-size: 1.2em;
-            color: red;
+            color: #d9534f;
+        }
+        /* Save Button */
+        #save-button {
+            margin-top: 30px;
+            padding: 12px 24px;
+            font-size: 18px;
+            color: #fff;
+            background-color: #28a745;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 28px;
+            }
+            #diary-content {
+                font-size: 16px;
+                padding: 12px;
+            }
+        }
+        @media (max-width: 480px) {
+            body {
+                padding: 10px;
+            }
+            #diary-content-container {
+                max-width: 100%;
+            }
         }
     </style>
 </head>
 <body>
     <h1>{{ 'Revise Diary' if revise else 'Create New Diary' }}</h1>
     
-    <!-- Diary Content Display -->
-    <div id="diary-content" tabindex="0" aria-label="Diary Content"></div>
+    <!-- Diary Content Container -->
+    <div id="diary-content-container">
+        <!-- Diary Content Display -->
+        <div id="diary-content" tabindex="0" aria-label="Diary Content"></div>
     
     <!-- Status Message -->
     <div id="status-message" aria-live="polite"></div>

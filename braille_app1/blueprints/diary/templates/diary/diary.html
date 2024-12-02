@@ -1,77 +1,139 @@
-<!-- blueprints/diary/templates/diary/diary.html -->
+    <!-- blueprints/diary/templates/diary/diary.html -->
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Diary Section</title>
-    <style>
-        /* Basic Styles */
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Diary Section</title>
+        <style>
+        /* Enhanced Styles */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             padding: 20px;
-            background-color: #fafafa;
+            background-color: #f9f9f9;
             text-align: center;
         }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 48px;
+        }
         .diary-list {
-            max-width: 800px;
-            margin: 20px auto;
+            max-width: 900px;
+            margin: 0 auto;
             text-align: left;
         }
-        .diary-item, #create-new-diary {
-            border: 1px solid #ccc;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 5px;
+        .diary-item, .create-diary-button {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 20px;
+            margin-bottom: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
             background-color: #fff;
             cursor: pointer;
             position: relative;
+            transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
             outline: none;
         }
-        .diary-item:hover, #create-new-diary:hover {
-            background-color: #f0f0f0;
+        .diary-item:hover, .create-diary-button:hover {
+            background-color: #f0f8ff;
+            border-color: #1e90ff;
+            box-shadow: 0 4px 8px rgba(30, 144, 255, 0.2);
         }
         .diary-date {
-            font-size: 18px;
-            font-weight: bold;
-        }
-        #create-new-diary {
-            background-color: #28a745;
-            color: #fff;
             font-size: 20px;
-            transition: background-color 0.3s;
+            font-weight: bold;
+            color: #1e90ff;
+            margin-bottom: 10px;
         }
-        #create-new-diary:hover {
-            background-color: #218838;
+        .diary-content {
+            font-size: 18px;
+            color: #555;
+            line-height: 1.6;
+            white-space: pre-wrap; /* Preserve line breaks */
+        }
+        /* Styling for "Create New Diary" Button */
+        .create-diary-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px; /* Space below the button */
+        }
+        .create-diary-button {
+            border: 2px solid #28a745;
+            background: linear-gradient(145deg, #28a745, #218838);
+            color: #fff;
+            font-size: 22px;
+            padding: 15px 30px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s, transform 0.3s, box-shadow 0.3s;
+            width: 60%;
+            max-width: 300px; /* Prevent excessive width on large screens */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .create-diary-button:hover {
+            background: linear-gradient(145deg, #218838, #1e7e34);
+            transform: scale(1.05);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
         }
         /* Highlight selected item */
         .selected {
-            background-color: #e5e75f !important;
-            border: 2px solid #dde74d;
+            background-color: #e0f7fa !important;
+            border: 2px solid #00acc1 !important;
+            box-shadow: 0 0 10px rgba(0, 172, 193, 0.5);
         }
         /* Status Message */
         #status-message {
             margin-top: 20px;
             font-size: 1.2em;
-            color: red;
+            color: #d9534f;
+        }
+        /* Responsive Design */
+        @media (max-width: 600px) {
+            .diary-item, .create-diary-button {
+                padding: 15px;
+            }
+            .diary-date {
+                font-size: 18px;
+            }
+            .diary-content {
+                font-size: 16px;
+            }
+            .create-diary-button {
+                font-size: 20px;
+                width: 80%; /* Adjust for smaller screens */
+            }
         }
     </style>
 </head>
 <body>
     <h1>Diary Section</h1>
     
-    <!-- Create New Diary Button -->
-    <button id="create-new-diary" aria-label="Create New Diary" tabindex="0">Create New Diary</button>
+    <!-- Create New Diary Button Container -->
+    <div class="create-diary-container">
+        <button class="create-diary-button" id="create-new-diary" aria-label="Create New Diary" tabindex="0">
+            Create New Diary
+        </button>
+    </div>
     
     <!-- List of Existing Diaries -->
     <div class="diary-list" id="diary-list">
         {% for diary in diaries %}
             <div class="diary-item" 
-                 data-id="{{ diary.id }}" 
-                 data-date="{{ diary.date.strftime('%Y-%m-%d %H:%M:%S') }}" 
-                 tabindex="0">
+                data-id="{{ diary.id }}" 
+                data-date="{{ diary.date.strftime('%Y-%m-%d %H:%M:%S') }}" 
+                data-content="{{ diary.content }}" 
+                tabindex="0">
                 <div class="diary-date">
                     {{ diary.date.strftime('%Y-%m-%d %H:%M:%S') }}
+                </div>
+                <div class="diary-content">
+                    {{ diary.content }}
                 </div>
             </div>
         {% endfor %}
@@ -79,251 +141,255 @@
     
     <!-- Status Message -->
     <div id="status-message" aria-live="polite"></div>
-    
-    <!-- External JavaScript -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Define navigation index
-            // currentIndex: 0 = Create New Diary, 1 to N = diary entries
-            let currentIndex = 0;
-            const diaryList = document.getElementById('diary-list');
-            const diaryItems = diaryList.querySelectorAll('.diary-item');
-            const createNewDiaryBtn = document.getElementById('create-new-diary');
-            let totalItems = diaryItems.length + 1; // +1 for Create New Diary
-            const statusMessage = document.getElementById('status-message');
-            
-            // Speech synthesis control
-            let isSpeaking = false;
-
-            // Function to get the currently focused element based on currentIndex
-            function getCurrentElement() {
-                if (currentIndex === 0) {
-                    return createNewDiaryBtn;
-                } else {
-                    return diaryItems[currentIndex - 1];
-                }
-            }
-
-            // Function to clear all highlights
-            function clearHighlights() {
-                createNewDiaryBtn.classList.remove('selected');
-                diaryItems.forEach(item => item.classList.remove('selected'));
-            }
-
-            // Function to update selection and handle speech
-            function updateSelection() {
-                clearHighlights();
-                const currentElement = getCurrentElement();
-                currentElement.classList.add('selected');
-                currentElement.focus();
+        
+        <!-- External JavaScript -->
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                // Define navigation index
+                // currentIndex: 0 = Create New Diary, 1 to N = diary entries
+                let currentIndex = 0;
+                const diaryList = document.getElementById('diary-list');
+                const createNewDiaryBtn = document.getElementById('create-new-diary');
+                const statusMessage = document.getElementById('status-message');
                 
-                if (currentIndex === 0) {
-                    // "Create New Diary" selected
-                    speakMessage('Create New Diary', 'en-US');
-                } else {
-                    // Diary entry selected
-                    const diaryDate = currentElement.dataset.date;
-                    speakMessage(`Diary from ${diaryDate}`, 'en-US');
+                // Speech synthesis control
+                let isSpeaking = false;
+        
+                // Function to get the current list of diary items
+                function getDiaryItems() {
+                    return diaryList.querySelectorAll('.diary-item');
                 }
-            }
-
-            // Function to speak messages in specified language
-            function speakMessage(message, lang) {
-                console.log(`Speaking message: "${message}" in language: ${lang}`);
-                if (isSpeaking) {
-                    window.speechSynthesis.cancel();
+        
+                // Function to get the currently focused element based on currentIndex
+                function getCurrentElement() {
+                    if (currentIndex === 0) {
+                        return createNewDiaryBtn;
+                    } else {
+                        const diaryItems = getDiaryItems();
+                        return diaryItems[currentIndex - 1] || createNewDiaryBtn;
+                    }
                 }
-                const utterance = new SpeechSynthesisUtterance(message);
-                utterance.lang = lang; // Set language
-                
-                // Select a voice that matches the language
-                const voices = window.speechSynthesis.getVoices();
-                const matchedVoice = voices.find(voice => voice.lang === lang);
-                if (matchedVoice) {
-                    utterance.voice = matchedVoice;
-                } else {
-                    console.warn(`No voice found for language: ${lang}. Using default voice.`);
+        
+                // Function to clear all highlights
+                function clearHighlights() {
+                    createNewDiaryBtn.classList.remove('selected');
+                    getDiaryItems().forEach(item => item.classList.remove('selected'));
                 }
-                
-                utterance.onstart = () => { isSpeaking = true; };
-                utterance.onend = () => { isSpeaking = false; };
-                window.speechSynthesis.speak(utterance);
-            }
-
-            // Function to activate the selected item
-            function activateSelectedItem() {
-                const currentElement = getCurrentElement();
-                if (currentIndex === 0) {
-                    // Navigate to Create New Diary
-                    navigateToDiaryContent();
-                } else {
-                    const diaryId = currentElement.dataset.id;
-                    navigateToDiaryContent(diaryId);
-                }
-            }
-
-            // Function to navigate to diary content page
-            function navigateToDiaryContent(diaryId = null) {
-                if (diaryId) {
-                    window.location.href = `/diary/content?revise=${diaryId}`;
-                } else {
-                    window.location.href = `/diary/content`;
-                }
-            }
-
-            // Function to read diary content via speech synthesis
-            function readDiaryContent(diaryId) {
-                fetch(`/diary/read/${diaryId}`)
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.content) {
-                            speakMessage(data.content, 'en-US');
+        
+                // Function to update selection and handle speech
+                function updateSelection() {
+                    clearHighlights();
+                    const currentElement = getCurrentElement();
+                    if (currentElement) {
+                        currentElement.classList.add('selected');
+                        currentElement.focus();
+                        
+                        if (currentIndex === 0) {
+                            // "Create New Diary" selected
+                            speakMessage('Create New Diary', 'en-US');
                         } else {
-                            speakMessage('Diary content is empty.', 'en-US');
+                            // Diary entry selected
+                            const diaryDate = currentElement.dataset.date;
+                            speakMessage(`Diary from ${diaryDate}`, 'en-US');
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error reading diary:', error);
-                        speakMessage('Failed to read diary.', 'en-US');
-                    });
-            }
-
-            // Function to delete a diary entry
-            function deleteDiary(diaryId) {
-                if (confirm('Are you sure you want to delete this diary?')) {
-                    fetch(`/diary/delete/${diaryId}`, {
-                        method: 'DELETE',
-                    })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        if (data.message) {
-                            speakMessage(data.message, 'en-US');
-                            // Remove the diary from the list
-                            const diaryElement = document.querySelector(`.diary-item[data-id='${diaryId}']`);
-                            if (diaryElement) {
-                                diaryElement.remove();
-                                // Update indices and totalItems
-                                currentIndex = currentIndex > 0 ? currentIndex - 1 : 0;
-                                // Recalculate totalItems
-                                totalItems = diaryList.querySelectorAll('.diary-item').length + 1;
+                    }
+                }
+        
+                // Function to speak messages in specified language
+                function speakMessage(message, lang) {
+                    console.log(`Speaking message: "${message}" in language: ${lang}`);
+                    if (isSpeaking) {
+                        window.speechSynthesis.cancel();
+                    }
+                    const utterance = new SpeechSynthesisUtterance(message);
+                    utterance.lang = lang; // Set language
+                    
+                    // Select a voice that matches the language
+                    const voices = window.speechSynthesis.getVoices();
+                    const matchedVoice = voices.find(voice => voice.lang.startsWith(lang));
+                    if (matchedVoice) {
+                        utterance.voice = matchedVoice;
+                    } else {
+                        console.warn(`No voice found for language: ${lang}. Using default voice.`);
+                    }
+                    
+                    utterance.onstart = () => { isSpeaking = true; };
+                    utterance.onend = () => { isSpeaking = false; };
+                    window.speechSynthesis.speak(utterance);
+                }
+        
+                // Function to activate the selected item
+                function activateSelectedItem() {
+                    const currentElement = getCurrentElement();
+                    if (currentIndex === 0) {
+                        // Navigate to Create New Diary
+                        navigateToDiaryContent();
+                    } else {
+                        const diaryId = currentElement.dataset.id;
+                        navigateToDiaryContent(diaryId);
+                    }
+                }
+        
+                // Function to navigate to diary content page
+                function navigateToDiaryContent(diaryId = null) {
+                    if (diaryId) {
+                        window.location.href = `/diary/content?revise=${diaryId}`;
+                    } else {
+                        window.location.href = `/diary/content`;
+                    }
+                }
+        
+                // Function to read diary content via speech synthesis
+                function readDiaryContent(diaryId) {
+                    fetch(`/diary/read/${diaryId}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.content) {
+                                speakMessage(data.content, 'en-US');
+                            } else {
+                                speakMessage('Diary content is empty.', 'en-US');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error reading diary:', error);
+                            speakMessage('Failed to read diary.', 'en-US');
+                        });
+                }
+        
+                // Function to delete a diary entry
+                function deleteDiary(diaryId) {
+                    if (confirm('Are you sure you want to delete this diary?')) {
+                        fetch(`/diary/delete/${diaryId}`, {
+                            method: 'DELETE',
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            if (data.message) {
+                                speakMessage(data.message, 'en-US');
+                                // Remove the diary from the list
+                                const diaryElement = document.querySelector(`.diary-item[data-id='${diaryId}']`);
+                                if (diaryElement) {
+                                    diaryElement.remove();
+                                    // Adjust currentIndex based on remaining diaries
+                                    const totalDiaries = getDiaryItems().length;
+                                    if (currentIndex > totalDiaries) {
+                                        currentIndex = totalDiaries;
+                                    }
+                                    updateSelection();
+                                }
+                            } else if (data.error) {
+                                speakMessage(data.error, 'en-US');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error deleting diary:', error);
+                            speakMessage('Failed to delete diary.', 'en-US');
+                        });
+                    }
+                }
+        
+                // Handle Braille Keyboard Signals
+                function handleBrailleSignal(signal) {
+                    console.log('Received signal:', signal);
+                    switch(signal) {
+                        case 'Left':
+                            if (currentIndex > 0) {
+                                currentIndex--;
                                 updateSelection();
                             }
-                        } else if (data.error) {
-                            speakMessage(data.error, 'en-US');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error deleting diary:', error);
-                        speakMessage('Failed to delete diary.', 'en-US');
-                    });
+                            break;
+                        case 'Right':
+                            if (currentIndex < getDiaryItems().length) {
+                                currentIndex++;
+                                updateSelection();
+                            }
+                            break;
+                        case 'Ctrl+Space':
+                            handleCtrlSpace();
+                            break;
+                        case 'Ctrl+Left':
+                            handleCtrlLeft();
+                            break;
+                        case 'Ctrl+Backspace': // New case added
+                            handleCtrlBackspace();
+                            break;
+                        case 'Enter':
+                            activateSelectedItem();
+                            break;
+                        default:
+                            console.warn(`Unhandled signal: ${signal}`);
+                    }
                 }
-            }
-
-            // Handle Braille Keyboard Signals
-            function handleBrailleSignal(signal) {
-                console.log('Received signal:', signal);
-                switch(signal) {
-                    case 'Left':
-                        if (currentIndex > 0) {
-                            currentIndex--;
-                            updateSelection();
-                        }
-                        break;
-                    case 'Right':
-                        if (currentIndex < totalItems -1) {
-                            currentIndex++;
-                            updateSelection();
-                        }
-                        break;
-                    case 'Ctrl+Space':
-                        handleCtrlSpace();
-                        break;
-                    case 'Ctrl+Left':
-                        handleCtrlLeft();
-                        break;
-                    case 'Ctrl+Backspace': // New case added
-                        handleCtrlBackspace();
-                        break;
-                    case 'Enter':
-                        activateSelectedItem();
-                        break;
-                    default:
-                        console.warn(`Unhandled signal: ${signal}`);
+                // Function to handle 'Ctrl+Backspace' signal
+                function handleCtrlBackspace() {
+                    window.location.href = '/';
                 }
-            }
-            // Function to handle 'Ctrl+Backspace' signal
-            function handleCtrlBackspace() {
-                //speakMessage('Back.', 'en-US');
-                // Optional: Add a short delay to allow the speech to be heard before navigation
-                //setTimeout(() => {
-                    //window.location.href = '/';
-                //}, 1000); // 1-second delay
-                window.location.href = '/';
-            }
-
-            // Function to handle 'Ctrl+Space' signal
-            function handleCtrlSpace() {
-                if (currentIndex === 0) {
-                    // No action for "Create New Diary"
-                    speakMessage('Create New Diary. No content to read.', 'en-US');
-                    return;
+        
+                // Function to handle 'Ctrl+Space' signal
+                function handleCtrlSpace() {
+                    if (currentIndex === 0) {
+                        // No action for "Create New Diary"
+                        speakMessage('Create New Diary. No content to read.', 'en-US');
+                        return;
+                    }
+                    const currentElement = getCurrentElement();
+                    const diaryId = currentElement.dataset.id;
+                    readDiaryContent(diaryId);
                 }
-                const currentElement = getCurrentElement();
-                const diaryId = currentElement.dataset.id;
-                readDiaryContent(diaryId);
-            }
-
-            // Function to handle 'Ctrl+Left' signal
-            function handleCtrlLeft() {
-                if (currentIndex === 0) {
-                    // No action for "Create New Diary"
-                    speakMessage('Create New Diary. No diary to delete.', 'en-US');
-                    return;
+        
+                // Function to handle 'Ctrl+Left' signal
+                function handleCtrlLeft() {
+                    if (currentIndex === 0) {
+                        // No action for "Create New Diary"
+                        speakMessage('Create New Diary. No diary to delete.', 'en-US');
+                        return;
+                    }
+                    const currentElement = getCurrentElement();
+                    const diaryId = currentElement.dataset.id;
+                    deleteDiary(diaryId);
                 }
-                const currentElement = getCurrentElement();
-                const diaryId = currentElement.dataset.id;
-                deleteDiary(diaryId);
-            }
-
-            // Poll the backend for Braille signals and dispatch events
-            function pollBrailleSignals() {
-                fetch('/diary/get_braille_signals')
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        const brailleSignals = data.braille_signals;
-                        const controlSignals = data.control_signals;
-                        
-                        // Handle Control Signals
-                        controlSignals.forEach(signal => {
-                            handleBrailleSignal(signal);
+        
+                // Poll the backend for Braille signals and dispatch events
+                function pollBrailleSignals() {
+                    fetch('/diary/get_braille_signals')
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            const brailleSignals = data.braille_signals;
+                            const controlSignals = data.control_signals;
+                            
+        
+                            // Handle Control Signals
+                            controlSignals.forEach(signal => {
+                                handleBrailleSignal(signal);
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Error polling Braille signals:', error);
                         });
-                    })
-                    .catch(error => {
-                        console.error('Error polling Braille signals:', error);
-                    });
-            }
-            
-            // Initial selection
-            updateSelection();
-            
-            // Poll Braille signals every 500ms
-            setInterval(pollBrailleSignals, 500);
-        });
-    </script>
-</body>
-</html>
+                }
+                
+                // Initial selection
+                updateSelection();
+                
+                // Poll Braille signals every 500ms
+                setInterval(pollBrailleSignals, 500);
+            });
+        </script>
+        
+    </body>
+    </html>

@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>키보드 키 음성 출력화면입니다.</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            color: #000;
+            font-size: 60px;
+        }
+
+        #selection {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        button {
+            width: 100px;
+            height: 100px;
+            border: 2px solid #000;
+            border-radius: 10px;
+            background-color: #fff;
+            font-size: 30px;
+            font-weight: 800;
+            color: #000;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            outline: none;
+            padding: 20px;
+        }
+
+        .selected {
+            background-color: #000;
+            color: #fff;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>키보드 키 음성 출력화면입니다.</h1>
+    <div id="selection">
+        <button id="left" data-signal="Left">Left</button>
+        <button id="button1" data-signal="000001">Button 1</button>
+        <button id="button2" data-signal="000010">Button 2</button>
+        <button id="button3" data-signal="000100">Button 3</button>
+        <button id="button4" data-signal="001000">Button 4</button>
+        <button id="button5" data-signal="010000">Button 5</button>
+        <button id="button6" data-signal="100000">Button 6</button>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const buttons = document.querySelectorAll("#selection button");
+
+            // Function to handle button press and play voice message
+            function handleBrailleSignal(signal) {
+                let message = '';
+                switch(signal) {
+                    case 'Left':
+                        message = 'Left';
+                        break;
+                    case '000001':
+                        message = 'Button 1';
+                        break;
+                    case '000010':
+                        message = 'Button 2';
+                        break;
+                    case '000100':
+                        message = 'Button 3';
+                        break;
+                    case '001000':
+                        message = 'Button 4';
+                        break;
+                    case '010000':
+                        message = 'Button 5';
+                        break;
+                    case '100000':
+                        message = 'Button 6';
+                        break;
+                    default:
+                        message = 'Unknown Signal';
+                }
+                speakMessage(message);
+            }
+
+            // Function to speak messages using Speech Synthesis
+            function speakMessage(message) {
+                window.speechSynthesis.cancel();
+                setTimeout(() => {
+                    const utterance = new SpeechSynthesisUtterance(message);
+                    utterance.lang = 'ko-KR';
+                    window.speechSynthesis.speak(utterance);
+                }, 100); 
+            }
+
+            // Poll Braille control signals every 500ms
+            function pollBrailleSignals() {
+                fetch('/index/get_buffer')  // Backend endpoint to get input buffer and control signal
+                    .then(response => response.json())
+                    .then(data => {
+                        const controlSignal = data.control_signal;
+                        if (controlSignal) {
+                            handleBrailleSignal(controlSignal); // Handle Braille signal if available
+                        }
+                    })
+                    .catch(error => console.error('Error fetching Braille signals:', error));
+            }
+
+            // Start polling for Braille signals when the page loads
+            setInterval(pollBrailleSignals, 500);  // Poll every 500ms
+        });
+    </script>
+</body>
+</html>
