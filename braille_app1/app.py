@@ -43,10 +43,15 @@ def create_app():
     from blueprints.diary.routes import diary_bp
     from blueprints.manual.routes import manual_bp
     from blueprints.learning_ko import learning_bp_ko
+    from blueprints.index_bp import index_bp
     app.register_blueprint(learning_bp, url_prefix='/learning')
     app.register_blueprint(diary_bp, url_prefix='/diary')
     app.register_blueprint(manual_bp, url_prefix='/manual')
     app.register_blueprint(learning_bp_ko, url_prefix='/learning_ko')
+    
+    # Register the Index Blueprint
+    app.register_blueprint(index_bp)  # No prefix needed as route is specific
+    
     
     # Home route
     @app.route('/')

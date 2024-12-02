@@ -10,9 +10,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 # /learn 페이지 라우트
-@learning_bp.route('/')
-def learn():
-    return render_template('learning/home.html')
+# @learning_bp.route('/')
+# def learn():
+#     return render_template('learning/home.html')
 
 @learning_bp.route('/en')
 def learn_english():
@@ -22,9 +22,9 @@ def learn_english():
 def learn_eng_1():
     return render_template('learning/en_1.html')
 
-@learning_bp.route('/en/2')
-def learn_eng_2():
-    return render_template('learning/en_2.html')
+# @learning_bp.route('/en/2')
+# def learn_eng_2():
+#     return render_template('learning/en_2.html')
 
 
 @learning_bp.route('/en/3')

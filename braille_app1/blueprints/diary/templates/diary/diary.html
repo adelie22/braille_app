@@ -251,12 +251,24 @@
                     case 'Ctrl+Left':
                         handleCtrlLeft();
                         break;
+                    case 'Ctrl+Backspace': // New case added
+                        handleCtrlBackspace();
+                        break;
                     case 'Enter':
                         activateSelectedItem();
                         break;
                     default:
                         console.warn(`Unhandled signal: ${signal}`);
                 }
+            }
+            // Function to handle 'Ctrl+Backspace' signal
+            function handleCtrlBackspace() {
+                //speakMessage('Back.', 'en-US');
+                // Optional: Add a short delay to allow the speech to be heard before navigation
+                //setTimeout(() => {
+                    //window.location.href = '/';
+                //}, 1000); // 1-second delay
+                window.location.href = '/';
             }
 
             // Function to handle 'Ctrl+Space' signal

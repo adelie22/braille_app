@@ -227,7 +227,7 @@ def get_current_input_buffer():
         'control_signal': control_signal
     })
 
-@learning_bp.route('/', methods=['GET', 'POST'])
+@learning_bp.route('/en/2', methods=['GET', 'POST'])
 def index():
     """
     Handles the Learning section.
@@ -263,7 +263,7 @@ def index():
                 # Handle the case where no words are available in the database
                 flash("No words available in the database.", "error")
                 logging.warning("No words found in the database.")
-                return render_template('learning/index.html')
+                return render_template('learning/en_2.html')
 
         # Determine whether to play word audio
         word_audio_played = session.get('word_audio_played', False)
@@ -277,7 +277,7 @@ def index():
         # Check if there's a feedback audio to play
         feedback_audio_url = session.pop('feedback_audio_url', None)
 
-        return render_template('learning/index.html', target_word=word_entry.word, audio_url=audio_url, feedback_audio_url=feedback_audio_url)
+        return render_template('learning/en_2.html', target_word=word_entry.word, audio_url=audio_url, feedback_audio_url=feedback_audio_url)
 
     elif request.method == 'POST':
         control_signal_item = None
@@ -401,7 +401,7 @@ def handle_enter_signal():
                     session['feedback_audio_url'] = feedback_audio_url
 
                 return render_template(
-                    'learning/index.html',
+                    'learning/en_2.html',
                     target_word=new_word if new_word else None,
                     audio_url=None,  # Do not play word audio separately
                     feedback_audio_url=feedback_audio_url
@@ -422,7 +422,7 @@ def handle_enter_signal():
 
                 # Render the template with the same target word and feedback audio
                 return render_template(
-                    'learning/index.html',
+                    'learning/en_2.html',
                     target_word=target_word_entry.word,
                     audio_url=None,  # Do not replay word audio
                     feedback_audio_url=feedback_audio_url
@@ -554,7 +554,7 @@ def handle_ctrl_enter_signal():
 
     # Render the template with the stored word and feedback audio
     return render_template(
-        'learning/index.html',
+        'learning/en_2.html',
         target_word=word_entry.word,
         audio_url=audio_url,
         feedback_audio_url=feedback_audio_url

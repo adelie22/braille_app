@@ -73,12 +73,13 @@ def submit_braille_word():
     """
     Translates Braille inputs and submits the word for validation.
     """
-    input_buffer = g.keyboard.get_current_input_buffer()
+    data = request.get_json()
+    input_buffer = data.get('input_buffer', [])
     input_signal = g.keyboard.read_input()  # Retrieve and remove the next signal
 
     control_signal = None
-    if input_signal and input_signal.get('type') == 'control':
-        control_signal = input_signal.get('data')
+    if input_signal and isinstance(input_signal, str):
+        control_signal = input_signal
 
     logging.debug(f"Submit Braille Word - Input Buffer: {input_buffer}, Control Signal: {control_signal}")
 
@@ -86,16 +87,14 @@ def submit_braille_word():
         return jsonify({'error': 'No Enter signal detected.'}), 400
 
     # Translate Braille to Text
-    translated_syllables = translate_braille_to_text(input_buffer)
+    translated_text = translate_braille_to_text(input_buffer)
     
-    if not translated_syllables:
+    if not translated_text:
         flash("Braille translation failed.", "error")
         logging.error("Braille translation failed.")
         return jsonify({'error': 'Braille translation failed.'}), 400
 
-    # Combine syllables to form the complete word
-    translated_word = ''.join(translated_syllables)
-    logging.debug(f"Translated Word: {translated_word}")
+    logging.debug(f"Translated Text: {translated_text}")
 
     # Clear the input buffer after translation
     g.keyboard.clear_input_buffer()
@@ -103,15 +102,15 @@ def submit_braille_word():
     # Validate the translated word
     history_ko = current_app.config.setdefault('HISTORY_KO', [])
 
-    is_valid, error_message = check_word_validity(translated_word, history_ko)
+    is_valid, error_message = check_word_validity(translated_text, history_ko)
     if not is_valid:
         flash(error_message, "error")
-        logging.info(f"Invalid word submitted: {translated_word} - {error_message}")
+        logging.info(f"Invalid word submitted: {translated_text} - {error_message}")
         return jsonify({'error': error_message}), 400
 
     # Valid word: add to history and generate computer word
-    history_ko.append(translated_word)
-    logging.info(f"Valid word submitted: {translated_word}. Updated history: {history_ko}")
+    history_ko.append(translated_text)
+    logging.info(f"Valid word submitted: {translated_text}. Updated history: {history_ko}")
 
     # Generate computer's next word
     next_word = generate_next_word(history_ko)
@@ -122,24 +121,31 @@ def submit_braille_word():
     else:
         logging.warning("Computer cannot generate a word. Game over.")
         return jsonify({"message": "Valid word", "history": history_ko, "computer_word": None, "game_over": True}), 200
+
     
 
 @word_chain_api.route('/word_chain/translate_braille', methods=['POST'])
 def translate_braille():
     """
-    Translates the current Braille input buffer into Korean syllables.
-    Returns a list of syllables and the cursor position.
+    Translates the current Braille input buffer into Korean text.
+    Returns the complete translated text and the cursor position.
     """
-    input_buffer = g.keyboard.get_current_input_buffer()
-    translated_syllables = translate_braille_to_text(input_buffer)
+    data = request.get_json()
+    input_buffer = data.get('input_buffer', [])
+    logging.debug(f"Received input_buffer for translation: {input_buffer}")
+    translated_text = translate_braille_to_text(input_buffer)
     cursor_position = g.keyboard.get_cursor_position()
     
     response = {
-        'translated_syllables': translated_syllables,
+        'translated_text': translated_text,
         'cursor_position': cursor_position
     }
     
+    logging.debug(f"Translated text: {translated_text}, Cursor position: {cursor_position}")
+    
     return jsonify(response), 200
+
+
 
 
 
