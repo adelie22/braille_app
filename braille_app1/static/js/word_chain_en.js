@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let incorrectAttempts = 0;
     let totalExchanges = 0;
     let lastExchange = { user: '', computer: '' };
+    let hasSpokenNoWordMessage = false;
     // Removed gameOver flag
 
     // Initialize menu and navigable items
@@ -287,9 +288,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     speakMessage('An error occurred.');
                 });
         } else {
-            speakMessage('No word to submit.');
+            if (!hasSpokenNoWordMessage) {
+                speakMessage('No word to submit.');
+                hasSpokenNoWordMessage = true;  // Set the flag to true
         }
     }
+}
 
     // Function to display and speak status messages
     function showStatusMessage(message) {
@@ -309,6 +313,8 @@ document.addEventListener('DOMContentLoaded', function () {
             .then((data) => {
                 console.log(data.message);
                 speakMessage('Game has been restarted.');
+                // Reset flag on restart
+                hasSpokenNoWordMessage = false;
                 incorrectAttempts = 0; // Reset incorrect attempts
                 totalExchanges = 0; // Reset total exchanges
                 lastExchange = { user: '', computer: '' }; // Reset last exchanges

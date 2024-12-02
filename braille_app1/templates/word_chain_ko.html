@@ -117,16 +117,6 @@
             color: red;
         }
 
-        /* Focused element styles */
-        #translated-word-ko:focus {
-            border: 2px solid blue;
-            outline: none;
-        }
-
-        /* 'Back to Menu' button styles */
-        #back-to-menu-ko {
-            margin-top: 20px;
-        }
     </style>
 </head>
 
@@ -139,20 +129,17 @@
         <div id="translated-word-ko" class="braille-characters" aria-label="번역된 단어 표시" tabindex="0"></div>
     </div>
 
-    <!— 'Back to Menu' button —>
-    <button id="back-to-menu-ko" tabindex="1" aria-label="메뉴로 돌아가기 버튼">메뉴로 돌아가기</button>
-
     <p id="result-ko" aria-live="polite"></p>
     <ul id="history-ko"></ul>
 
-    <!— Additional Elements: Incorrect Attempts, Total Exchanges, Exchange Content —>
+    <!-- Additional Elements: Incorrect Attempts, Total Exchanges, Exchange Content -->
     <p id="attempts-ko">틀린 시도: 0 | 총 교환 횟수: 0</p>
     <p id="exchange-ko" style="font-size: 2rem; transition: transform 0.3s ease-out, opacity 0.3s ease-out;"></p>
 
-    <!— Status Message Display —>
+    <!-- Status Message Display -->
     <div id="status-message-ko" aria-live="polite"></div>
 
-    <!— JavaScript file —>
+    <!-- JavaScript file -->
     <script src="{{ url_for('static', filename='js/word_chain_ko.js') }}"></script>
 </body>
 

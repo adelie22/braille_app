@@ -233,13 +233,13 @@
             function handleBrailleSignal(signal) {
                 console.log('Received signal:', signal);
                 switch(signal) {
-                    case 'Up':
+                    case 'Left':
                         if (currentIndex > 0) {
                             currentIndex--;
                             updateSelection();
                         }
                         break;
-                    case 'Down':
+                    case 'Right':
                         if (currentIndex < totalItems -1) {
                             currentIndex++;
                             updateSelection();

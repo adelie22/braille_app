@@ -15,7 +15,7 @@
 
         h1 {
             color: #000;
-            font-size: 80px;   
+            font-size: 80px;
         }
 
         h2 {
@@ -26,10 +26,10 @@
         }
 
         p {
-            font-size: 30px;          
-            color: #000;              
-            line-height: 1;         
-            margin: 30px 0;          
+            font-size: 30px;
+            color: #000;
+            line-height: 1;
+            margin: 30px 0;
         }
 
         .hidden {
@@ -92,7 +92,7 @@
             setTimeout(() => {
                 const utterance = new SpeechSynthesisUtterance(message);
                 utterance.lang = 'ko-KR';
-                utterance.rate = 0.8;
+                utterance.rate = 1;
                 window.speechSynthesis.speak(utterance);
             }, 100); // 지연 시간 추가
         }
@@ -103,7 +103,7 @@
             setTimeout(() => {
                 const utterance = new SpeechSynthesisUtterance("매뉴얼 선택 화면입니다.");
                 utterance.lang = 'ko-KR';
-                utterance.rate = 0.8; // 느린 속도
+                utterance.rate = 1; // 기본 속도
                 window.speechSynthesis.speak(utterance);
             }, 100); // 지연 시간 추가
         }
@@ -143,48 +143,61 @@
             selectedButton.focus();
         }
 
-        // 키보드 이벤트 리스너 (위, 아래 방향키)
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'ArrowLeft') {
-                event.preventDefault();
+        // Function to handle Braille keyboard signals
+        function handleBrailleSignal(signal) {
+            if (signal === 'Left') {
                 navigateMenu('up');
-            } else if (event.key === 'ArrowRight') {
-                event.preventDefault();
+            } else if (signal === 'Right') {
                 navigateMenu('down');
-            } else if (event.key === 'Enter') {
-                // Enter 키로 버튼 클릭
+            } else if (signal === 'Enter') {
                 menuButtons[currentIndex].click();
+            } else if (signal === 'Ctrl+Backspace') {
+                window.location.href = "/";  // Go back to the main page
             }
-        });
+        }
 
-        // 버튼 클릭 이벤트
-        menuButtons.forEach((button) => {
-            button.addEventListener('click', () => {
-                const buttonId = button.id;
-                if (buttonId === 'learning-btn') {
-                    window.location.href = "/manual/learning";
-                } else if (buttonId === 'game-btn') {
-                    window.location.href = "/manual/game";
-                } else if (buttonId === 'diary-btn') {
-                    window.location.href = "/manual/diary";
-                } else if (buttonId === 'manual-btn') {
-                    window.location.href = "/manual/keyboard";
-                }
-            });
-        });
+        // Poll Braille signals
+        function pollBrailleSignals() {
+            fetch('/index/get_braille_signals')  // Replace with your actual Braille signal endpoint
+                .then(response => response.json())
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    controlSignals.forEach(signal => {
+                        handleBrailleSignal(signal);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error polling Braille signals:', error);
+                });
+        }
 
-        // 초기화
+        // Button click handlers for redirection
+        function navigateToPage(buttonId) {
+            if (buttonId === 'learning-btn') {
+                window.location.href = "/manual/learning";
+            } else if (buttonId === 'game-btn') {
+                window.location.href = "/manual/game";
+            } else if (buttonId === 'diary-btn') {
+                window.location.href = "/manual/diary";
+            } else if (buttonId === 'manual-btn') {
+                window.location.href = "/manual/keyboard";
+            }
+        }
+
+        // Initial setup
         document.addEventListener('DOMContentLoaded', () => {
             playWelcomeMessage(); // 페이지 로드 시 음성 안내 실행
             initializeMenu();
+            setInterval(pollBrailleSignals, 500);  // Poll Braille signals every 500ms
         });
 
-        document.addEventListener("keydown", function (event) {
-        if (event.ctrlKey && event.key === "Backspace") {
-            window.history.back(); // 이전 페이지로 이동
-        }
+        // Click event listener for buttons
+        menuButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                navigateToPage(button.id);
+            });
         });
-        
     </script>
 </body>
+
 </html>

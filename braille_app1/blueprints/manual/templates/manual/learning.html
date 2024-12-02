@@ -76,12 +76,12 @@
         const totalMenus = menuButtons.length;
 
         // 음성 출력 함수
-        function speakMessage(message, rate=0.7) {
+        function speakMessage(message) {
             window.speechSynthesis.cancel();
             setTimeout(() => {
                 const utterance = new SpeechSynthesisUtterance(message);
                 utterance.lang = 'ko-KR';
-                utterance.rate = rate; // 속도 설정
+                utterance.rate = 1; // 속도 설정
                 window.speechSynthesis.speak(utterance);
             }, 100);
         }
@@ -91,7 +91,7 @@
             setTimeout(() => {
                 const utterance = new SpeechSynthesisUtterance("학습 매뉴얼 화면입니다.");
                 utterance.lang = 'ko-KR';
-                utterance.rate = 0.8;
+                utterance.rate = 1;
                 window.speechSynthesis.speak(utterance);
             }, 100);
         }
@@ -117,27 +117,38 @@
             selectedButton.focus();
         }
 
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'ArrowLeft') {
-                event.preventDefault();
+        // Function to handle Braille keyboard signals
+        function handleBrailleSignal(signal) {
+            if (signal === 'Left') {
                 navigateMenu('up');
-            } else if (event.key === 'ArrowRight') {
-                event.preventDefault();
+            } else if (signal === 'Right') {
                 navigateMenu('down');
-            } else if (event.key === 'Enter') {
+            } else if (signal === 'Enter') {
                 menuButtons[currentIndex].click();
+            } else if (signal === 'Ctrl+Backspace') {
+                window.location.href = "/manual";  // Go back to the manual main page
             }
-        });
+        }
+
+        // Poll Braille signals
+        function pollBrailleSignals() {
+            fetch('/index/get_braille_signals')  // Replace with your actual Braille signal endpoint
+                .then(response => response.json())
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    controlSignals.forEach(signal => {
+                        handleBrailleSignal(signal);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error polling Braille signals:', error);
+                });
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             playWelcomeMessage();
             initializeMenu();
-        });
-
-        document.addEventListener("keydown", function (event) {
-            if (event.ctrlKey && event.key === "Backspace") {
-                window.history.back();
-            }
+            setInterval(pollBrailleSignals, 500);  // Poll Braille signals every 500ms
         });
     </script>
 </body>

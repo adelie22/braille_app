@@ -1,5 +1,3 @@
-<!-- templates/home.html -->
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -27,11 +25,11 @@
         }
 
         p {
-        font-size: 30px;          
-        color: #000;              
-        line-height: 1;         
-        margin: 30px 0;          
-    }
+            font-size: 30px;          
+            color: #000;              
+            line-height: 1;         
+            margin: 30px 0;          
+        }
 
         .hidden {
             display: none;
@@ -94,9 +92,8 @@
     </header>
 
     <script>
-        let currentIndex = 0;
         const menuButtons = document.querySelectorAll('.menu-button');
-        const totalMenus = menuButtons.length;
+        let currentIndex = 0;
 
         // 음성 출력 함수
         function speakMessage(message) {
@@ -107,16 +104,18 @@
                 window.speechSynthesis.speak(utterance);
             }, 100); // 지연 시간 추가
         }
-         // 페이지 초기화 시 음성 안내
-         function playWelcomeMessage() {
-        window.speechSynthesis.cancel(); // 기존 음성 중단
-        setTimeout(() => {
-            const utterance = new SpeechSynthesisUtterance("학습 언어 선택 화면입니다.");
-            utterance.lang = 'ko-KR';
-            utterance.rate = 0.8; // 느린 속도
-            window.speechSynthesis.speak(utterance);
-        }, 100); // 지연 시간 추가
-    }
+
+        // 페이지 초기화 시 음성 안내
+        function playWelcomeMessage() {
+            window.speechSynthesis.cancel(); // 기존 음성 중단
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance("학습 언어 선택 화면입니다.");
+                utterance.lang = 'ko-KR';
+                utterance.rate = 1; // 느린 속도
+                window.speechSynthesis.speak(utterance);
+            }, 100); // 지연 시간 추가
+        }
+
         // 초기화 함수
         function initializeMenu() {
             menuButtons[currentIndex].classList.add('selected');
@@ -128,41 +127,51 @@
             return button.textContent.trim();
         }
 
-        // 메뉴 간 이동 함수 (위, 아래로)
-        function navigateMenu(direction) {
-            // 기존 선택된 버튼 해제
-            menuButtons[currentIndex].classList.remove('selected');
-
-            // 현재 진행 중인 음성 중단
-            window.speechSynthesis.cancel();
-
-            // 인덱스 업데이트
-            if (direction === 'up') {
-                currentIndex = (currentIndex - 1 + totalMenus) % totalMenus;
-            } else if (direction === 'down') {
-                currentIndex = (currentIndex + 1) % totalMenus;
-            }
-
-            // 새로운 버튼에 선택 표시 및 음성 출력
+        // 메뉴 선택 함수
+        function activateMenu() {
             const selectedButton = menuButtons[currentIndex];
-            selectedButton.classList.add('selected');
-            speakMessage(getButtonText(selectedButton));
-            selectedButton.focus();
+            selectedButton.click();
         }
 
-        // 키보드 이벤트 리스너 (위, 아래 방향키)
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'ArrowLeft') {
-                event.preventDefault();
-                navigateMenu('up');
-            } else if (event.key === 'ArrowRight') {
-                event.preventDefault();
-                navigateMenu('down');
-            } else if (event.key === 'Enter') {
-                // Enter 키로 버튼 클릭
-                menuButtons[currentIndex].click();
+        // Braille control signals: Left, Right, Enter, Ctrl+Backspace
+        function handleBrailleSignal(signal) {
+            if (signal === 'Left') {
+                moveLeft();
+            } else if (signal === 'Right') {
+                moveRight();
+            } else if (signal === 'Enter') {
+                activateMenu();
+            } else if (signal === 'Ctrl+Backspace') {
+                window.location.href = '/'; // Redirect to the specific route
             }
-        });
+        }
+
+        // 메뉴 이동: 왼쪽
+        function moveLeft() {
+            menuButtons[currentIndex].classList.remove('selected');
+            currentIndex = (currentIndex - 1 + menuButtons.length) % menuButtons.length;
+            menuButtons[currentIndex].classList.add('selected');
+            speakMessage(getButtonText(menuButtons[currentIndex]));
+        }
+
+        // 메뉴 이동: 오른쪽
+        function moveRight() {
+            menuButtons[currentIndex].classList.remove('selected');
+            currentIndex = (currentIndex + 1) % menuButtons.length;
+            menuButtons[currentIndex].classList.add('selected');
+            speakMessage(getButtonText(menuButtons[currentIndex]));
+        }
+
+        // Poll Braille control signals
+        function pollBrailleSignals() {
+            fetch('/index/get_braille_signals')  // Backend endpoint to get signals
+                .then(response => response.json())
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    controlSignals.forEach(signal => handleBrailleSignal(signal));
+                })
+                .catch(error => console.error('Error fetching Braille signals:', error));
+        }
 
         // 버튼 클릭 이벤트
         menuButtons.forEach((button) => {
@@ -182,13 +191,8 @@
             initializeMenu();
         });
 
-        document.addEventListener("keydown", function (event) {
-        if (event.ctrlKey && event.key === "Backspace") {
-            window.history.back(); // 이전 페이지로 이동
-        }
-        });
+        // Poll Braille signals every 500ms
+        setInterval(pollBrailleSignals, 500);  // Every 500ms
     </script>
-
-
 </body>
 </html>

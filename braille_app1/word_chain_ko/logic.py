@@ -16,15 +16,15 @@ def translate_braille_to_text(braille_bits):
     Translates a list of 6-bit Braille signals into ko-text using BrailleToKor.
     Returns the complete translated text as a string.
     """
+    braille_bits_reversed = [bits[::-1] for bits in braille_bits]
+    logging.debug(f"Received braille_bits: {braille_bits_reversed}")  # 추가된 로그
     braille_chars = ''.join([
-        chr(0x2800 + int(bits, 2)) for bits in braille_bits
+        chr(0x2800 + int(bits, 2)) for bits in braille_bits_reversed
     ])
-    logging.debug(f"Received braille_bits: {braille_bits}")
     try:
         b = BrailleToKor()
         translated_text = b.translation(braille_chars).strip()
         logging.debug(f"Translated Braille to Text: {translated_text}")
-        
         return translated_text
     except Exception as e:
         logging.error(f"Translation error: {e}")

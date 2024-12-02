@@ -11,4 +11,4 @@ learning_bp_ko = Blueprint(
     template_folder='templates'  # Path to the blueprint's templates
 )
 # Import routes to register them with the blueprint
-from . import routes_ko_2
+from . import routes_ko_2, routes

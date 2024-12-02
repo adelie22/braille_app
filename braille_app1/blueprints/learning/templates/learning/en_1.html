@@ -87,19 +87,17 @@
         function playVoiceMessage(message) {
             const utterance = new SpeechSynthesisUtterance(message);
             utterance.lang = 'ko-KR';
-            utterance.rate = 0.8;
+            utterance.rate = 1;
             speechSynthesis.speak(utterance);
         }
 
         // 페이지 초기화 시 음성 안내
         function playWelcomeMessage() {
             window.speechSynthesis.cancel(); // 기존 음성 중단
-            setTimeout(() => {
-                const utterance = new SpeechSynthesisUtterance("알파벳 학습 화면입니다.");
-                utterance.lang = 'ko-KR';
-                utterance.rate = 0.8; // 느린 속도
-                window.speechSynthesis.speak(utterance);
-            }, 100); // 지연 시간 추가
+            const utterance = new SpeechSynthesisUtterance("알파벳 학습 화면입니다.");
+            utterance.lang = 'ko-KR';
+            utterance.rate = 1; // 느린 속도
+            window.speechSynthesis.speak(utterance);
         }
 
         function convertNumberToKorean(num) {
@@ -120,7 +118,7 @@
         // 버튼 렌더링
         function renderBrailleButtons() {
             const container = document.getElementById('brailleContainer');
-            container.innerHTML = '';
+            container.innerHTML = ''; // Clear the container first
 
             const brailleEntries = Object.entries(englishBraille);
 
@@ -133,32 +131,52 @@
                 `;
                 if (index === currentIndex) {
                     button.classList.add('selected');
+                    // Announce the current character when it's rendered
+                    playVoiceMessage(char); // Announce the character as soon as it's rendered
                 }
+                button.addEventListener('click', () => {
+                    const positionsText = formatPositions(englishBraille[char].positions);
+                    playVoiceMessage(`${char}, ${positionsText}`);
+                });
                 container.appendChild(button);
             });
         }
 
-        // 키보드 이벤트 처리
-        document.addEventListener('keydown', function (event) {
+
+        // Braille control signals: Left, Right, Enter, Ctrl+Backspace
+        function handleBrailleSignal(signal) {
             const brailleEntries = Object.entries(englishBraille);
             const totalCards = brailleEntries.length;
 
-            if (event.key === 'ArrowRight') {
-                if (currentIndex < totalCards - 1) {
-                    currentIndex++;
-                    renderBrailleButtons();
-                }
-            } else if (event.key === 'ArrowLeft') {
+            if (signal === 'Left') {
                 if (currentIndex > 0) {
                     currentIndex--;
                     renderBrailleButtons();
                 }
-            } else if (event.key === 'Enter') {
+            } else if (signal === 'Right') {
+                if (currentIndex < totalCards - 1) {
+                    currentIndex++;
+                    renderBrailleButtons();
+                }
+            } else if (signal === 'Enter') {
                 const [char, { dots, positions }] = brailleEntries[currentIndex];
                 const positionsText = formatPositions(positions);
                 playVoiceMessage(`${char}, ${positionsText}`);
+            } else if (signal === 'Ctrl+Backspace') {
+                window.location.href = '/learning/en'; // Redirect to the specific route
             }
-        });
+        }
+
+        // Poll Braille control signals
+        function pollBrailleSignals() {
+            fetch('/index/get_braille_signals')  // Backend endpoint to get signals
+                .then(response => response.json())
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    controlSignals.forEach(signal => handleBrailleSignal(signal));
+                })
+                .catch(error => console.error('Error fetching Braille signals:', error));
+        }
 
         // 페이지 로드 시 버튼 렌더링 및 음성 출력
         document.addEventListener('DOMContentLoaded', () => {
@@ -166,11 +184,8 @@
             renderBrailleButtons();
         });
 
-        document.addEventListener("keydown", function (event) {
-            if (event.ctrlKey && event.key === "Backspace") {
-                window.history.back(); // 이전 페이지로 이동
-            }
-        });
+        // Poll Braille signals periodically (every 300ms)
+        setInterval(pollBrailleSignals, 300);
     </script>
 </body>
 </html>

@@ -490,8 +490,12 @@ def handle_ctrl_backspace_signal():
     """
     Handles the 'Ctrl + Backspace' control signal by redirecting to the home menu.
     """
+    session.pop('current_word_id', None)
+    session.pop('word_audio_played', None)
+    session.pop('feedback_audio_url', None)
+    g.keyboard.clear_input_buffer()
     logging.debug("Ctrl + Backspace signal detected. Redirecting to home menu.")
-    return redirect(url_for('home'))
+    return redirect(url_for('learning.learn_english'))
 
 def handle_ctrl_enter_signal():
     """

@@ -191,3 +191,13 @@ def reset_game():
     history.clear()  # 기록 초기화
     print('Server-side history after reset:', history)
     return jsonify({"message": "Game has been reset."}), 200
+
+@word_chain_en_api.route('/word_chain_en/clear_buffer', methods=['POST'])
+def clear_buffer():
+    """
+    Clear the Braille keyboard input buffer.
+    This endpoint is called when the user presses Ctrl+Backspace.
+    """
+    g.keyboard.clear_input_buffer()  # Clear the input buffer in the backend
+    logging.info("Cleared input buffer.")
+    return jsonify({"success": True}), 200

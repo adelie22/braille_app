@@ -99,22 +99,18 @@
 
         // 음성 출력 함수
         function speakMessage(message) {
-            window.speechSynthesis.cancel(); // 기존 음성 중단
-            setTimeout(() => {
-                const utterance = new SpeechSynthesisUtterance(message);
-                utterance.lang = 'ko-KR';
-                window.speechSynthesis.speak(utterance);
-            }, 100); // 지연 시간 추가
+            //window.speechSynthesis.cancel(); // 기존 음성 중단
+            const utterance = new SpeechSynthesisUtterance(message);
+            utterance.lang = 'ko-KR';
+            window.speechSynthesis.speak(utterance);
         }
          // 페이지 초기화 시 음성 안내
          function playWelcomeMessage() {
-        window.speechSynthesis.cancel(); // 기존 음성 중단
-        setTimeout(() => {
-            const utterance = new SpeechSynthesisUtterance("한글 학습 단계 선택 화면입니다.");
+            window.speechSynthesis.cancel(); // 기존 음성 중단
+            const utterance = new SpeechSynthesisUtterance("영어 학습 단계 선택 화면입니다.");
             utterance.lang = 'ko-KR';
-            utterance.rate = 0.8; // 느린 속도
+            utterance.rate = 1; // 느린 속도
             window.speechSynthesis.speak(utterance);
-        }, 100); // 지연 시간 추가
     }
         // 초기화 함수
         function initializeMenu() {
@@ -124,51 +120,37 @@
         // 버튼 텍스트 가져오기
         function getButtonText(button) {
             const text = button.textContent.trim();
-
-        // 텍스트 매핑
-        const textMap = {
-            "G2": "그레이드 투", // 원하는 텍스트로 변환
-        };
-
-         // 매핑된 텍스트 반환, 없으면 기본 텍스트 반환
-        return textMap[text] || text;
+            return text;
+        }
+        // Braille 키 시그널을 처리하는 함수
+        function handleBrailleSignal(signal) {
+            if (signal === 'Left') {
+                // 왼쪽으로 이동
+                if (currentIndex > 0) {
+                    // 기존 선택된 버튼 해제
+                    menuButtons[currentIndex].classList.remove('selected');
+                    currentIndex--; // 인덱스 감소
+                    menuButtons[currentIndex].classList.add('selected');
+                    speakMessage(getButtonText(menuButtons[currentIndex]));  // Speak the selected button's text
+                }
+            } else if (signal === 'Right') {
+                // 오른쪽으로 이동
+                if (currentIndex < totalMenus - 1) {
+                    // 기존 선택된 버튼 해제
+                    menuButtons[currentIndex].classList.remove('selected');
+                    currentIndex++; // 인덱스 증가
+                    menuButtons[currentIndex].classList.add('selected');
+                    speakMessage(getButtonText(menuButtons[currentIndex]));  // Speak the selected button's text
+                }
+            } else if (signal === 'Enter') {
+                // Enter signal triggers button click
+                menuButtons[currentIndex].click(); // Braille key signal for "select"
+            } else if (signal === 'Ctrl+Backspace') {
+                // Ctrl+Backspace redirects to the previous page
+                window.location.href = '/home'; // Redirect to the specific route
+            }
         }
 
-        // 메뉴 간 이동 함수 (위, 아래로)
-        function navigateMenu(direction) {
-            // 기존 선택된 버튼 해제
-            menuButtons[currentIndex].classList.remove('selected');
-
-            // 현재 진행 중인 음성 중단
-            window.speechSynthesis.cancel();
-
-            // 인덱스 업데이트
-            if (direction === 'up') {
-                currentIndex = (currentIndex - 1 + totalMenus) % totalMenus;
-            } else if (direction === 'down') {
-                currentIndex = (currentIndex + 1) % totalMenus;
-            }
-
-            // 새로운 버튼에 선택 표시 및 음성 출력
-            const selectedButton = menuButtons[currentIndex];
-            selectedButton.classList.add('selected');
-            speakMessage(getButtonText(selectedButton));
-            selectedButton.focus();
-        }
-
-        // 키보드 이벤트 리스너 (위, 아래 방향키)
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'ArrowLeft') {
-                event.preventDefault();
-                navigateMenu('up');
-            } else if (event.key === 'ArrowRight') {
-                event.preventDefault();
-                navigateMenu('down');
-            } else if (event.key === 'Enter') {
-                // Enter 키로 버튼 클릭
-                menuButtons[currentIndex].click();
-            }
-        });
 
         // 버튼 클릭 이벤트
         menuButtons.forEach((button) => {
@@ -184,18 +166,24 @@
                 }
             });
         });
-
+        // Poll Braille control signals
+        function pollBrailleSignals() {
+            fetch('/index/get_braille_signals')  // Backend endpoint to get signals
+                .then(response => response.json())
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    controlSignals.forEach(signal => handleBrailleSignal(signal));
+                })
+                .catch(error => console.error('Error fetching Braille signals:', error));
+        }
         // 초기화
         document.addEventListener('DOMContentLoaded', () => {
             playWelcomeMessage(); // 페이지 로드 시 음성 안내 실행
             initializeMenu();
         });
 
-        document.addEventListener("keydown", function (event) {
-        if (event.ctrlKey && event.key === "Backspace") {
-            window.history.back(); // 이전 페이지로 이동
-        }
-        });
+        // Call polling function every second (1000 ms)
+        setInterval(pollBrailleSignals, 500);
     </script>
 
 

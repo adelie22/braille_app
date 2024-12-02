@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app, g, flash
+from flask import Blueprint, request, jsonify, current_app, flash, g
 from word_chain_ko.logic import check_word_validity, generate_next_word, translate_braille_to_text
 import logging
 
@@ -73,13 +73,12 @@ def submit_braille_word():
     """
     Translates Braille inputs and submits the word for validation.
     """
-    data = request.get_json()
-    input_buffer = data.get('input_buffer', [])
+    input_buffer = g.keyboard.get_current_input_buffer()
     input_signal = g.keyboard.read_input()  # Retrieve and remove the next signal
 
     control_signal = None
-    if input_signal and isinstance(input_signal, str):
-        control_signal = input_signal
+    if input_signal and input_signal.get('type') == 'control':
+        control_signal = input_signal.get('data')
 
     logging.debug(f"Submit Braille Word - Input Buffer: {input_buffer}, Control Signal: {control_signal}")
 
@@ -127,27 +126,12 @@ def submit_braille_word():
 @word_chain_api.route('/word_chain/translate_braille', methods=['POST'])
 def translate_braille():
     """
-    Translates the current Braille input buffer into Korean text.
-    Returns the complete translated text and the cursor position.
+    Translates the current Braille input buffer into English text.
     """
-    data = request.get_json()
-    input_buffer = data.get('input_buffer', [])
-    logging.debug(f"Received input_buffer for translation: {input_buffer}")
+    input_buffer = g.keyboard.get_current_input_buffer()
     translated_text = translate_braille_to_text(input_buffer)
     cursor_position = g.keyboard.get_cursor_position()
-    
-    response = {
-        'translated_text': translated_text,
-        'cursor_position': cursor_position
-    }
-    
-    logging.debug(f"Translated text: {translated_text}, Cursor position: {cursor_position}")
-    
-    return jsonify(response), 200
-
-
-
-
+    return jsonify({'translated_text': translated_text, 'cursor_position': cursor_position}), 200
 
 #---------------------------------------------------------------------------------------#
 

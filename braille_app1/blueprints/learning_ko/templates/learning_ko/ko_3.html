@@ -30,8 +30,8 @@
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            width: 200px;
-            height: 200px;
+            width: auto;
+            height: auto;
             border: 2px solid #000;
             border-radius: 10px;
             background-color: #fff;
@@ -41,6 +41,7 @@
             cursor: pointer;
             transition: background-color 0.3s, color 0.3s;
             outline: none;
+            padding: 1%;
         }
 
         .selected {
@@ -57,90 +58,156 @@
     <div id="selection">
         {% if vocabulary %}
             {% for item in vocabulary %}
-                <button>{{ item.word }}</button> 
+            <button data-id="{{ item.id }}" data-positions='{{ item.positions | tojson }}'>
+                <span class="braille">{{ item.braille }}</span>
+                <span class="word">{{ item.word }}</span>
+            </button>
             {% endfor %}
         {% else %}
             <p>No vocabulary data available.</p>
         {% endif %}
     </div>
 
-    <script>
-        // 음성 출력 함수
-        let isSpeaking = false; // 중복 음성 방지 플래그
-        function playVoiceMessage(message) {
-            if (isSpeaking) return; // 현재 음성 출력 중이면 중단
-            isSpeaking = true;
+<script>
+    function convertNumberToKorean(num) {
+        const koreanNumbers = ['일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+        return koreanNumbers[num - 1] || num;
+    }
 
-            const utterance = new SpeechSynthesisUtterance(message);
-            utterance.lang = 'ko-KR';
-            utterance.rate = 0.8;
+    // 음성 출력 함수
+    let isSpeaking = false; // 중복 음성 방지 플래그
+    // 음성 출력 함수
+    function playVoiceMessage(message, lang = 'ko-KR', rate = 0.8, callback = null) {
+        // 현재 진행 중인 음성을 중단합니다.
+        speechSynthesis.cancel();
 
+        const utterance = new SpeechSynthesisUtterance(message);
+        utterance.lang = lang;
+        utterance.rate = rate;
+
+        if (callback) {
             utterance.onend = () => {
-                isSpeaking = false; // 음성 출력 완료 시 플래그 해제
+                callback();
             };
-
-            speechSynthesis.speak(utterance);
         }
 
-        let currentIndex = 0;
+        speechSynthesis.speak(utterance);
+    }
 
-        function setupButtons() {
-            const buttons = document.querySelectorAll("#selection button");
+    let currentIndex = 0;
 
-            buttons.forEach((button, index) => {
-                // 기존 버튼 초기화
-                button.classList.remove("selected");
-                button.onclick = null; // 중복 이벤트 제거
+    function setupButtons() {
+        const buttons = document.querySelectorAll("#selection button");
 
-                // 클릭 이벤트 추가
+        buttons.forEach((button, index) => {
+            // 기존 버튼 초기화
+            button.classList.remove("selected");
+        });
+
+        // 현재 선택된 버튼 스타일 적용
+        if (buttons[currentIndex]) {
+            buttons[currentIndex].classList.add("selected");
+            buttons[currentIndex].focus();
+        }
+    }
+
+    // 이벤트 리스너를 한 번만 추가
+    function addButtonEventListeners() {
+        const buttons = document.querySelectorAll("#selection button");
+
+        buttons.forEach((button) => {
+            // 이미 이벤트 리스너가 추가된 버튼은 건너뜀
+            if (!button.dataset.listenerAdded) {
                 button.addEventListener("click", () => {
-                    playVoiceMessage(button.textContent.trim());
+                    const positions = JSON.parse(button.dataset.positions);
+                    const braille = button.querySelector(".braille").textContent.trim();
+                    const word = button.querySelector(".word").textContent.trim();
+
+                    console.log(`Button Clicked: ID=${button.dataset.id}, Word="${word}", Braille="${braille}", Positions=${JSON.stringify(positions)}`);
+
+                    // 점자 번호를 "일, 삼번" 형식으로 변환
+                    const brailleNumbers = positions.map(group => {
+                        return group.map(pos => convertNumberToKorean(pos)).join(", ") + "번";
+                    }).join(", ");
+
+                    // 음성 출력: 점자 번호와 단어
+                    const message = `점자 번호: ${brailleNumbers}. 단어: ${word}`;
+                    playVoiceMessage(message, 'ko-KR', 1.0);
                 });
 
-                // 선택된 버튼 스타일 적용
-                if (index === currentIndex) {
-                    button.classList.add("selected");
-                }
-            });
+                // 데이터셋에 리스너 추가 표시
+                button.dataset.listenerAdded = "true";
+            }
+        });
+    }
 
-            // 현재 선택된 버튼에 포커스 설정
+    document.addEventListener("keydown", function (event) {
+        const buttons = document.querySelectorAll("#selection button");
+
+        if (event.key === "ArrowRight") {
+            if (currentIndex < buttons.length - 1) {
+                currentIndex++;
+                setupButtons();
+                playVoiceMessage(buttons[currentIndex].textContent.trim(), 'ko-KR', 0.9);
+            }
+        } else if (event.key === "ArrowLeft") {
+            if (currentIndex > 0) {
+                currentIndex--;
+                setupButtons();
+                playVoiceMessage(buttons[currentIndex].textContent.trim(), 'ko-KR', 0.9);
+            }
+        } else if (event.key === "Enter") {
             if (buttons[currentIndex]) {
-                buttons[currentIndex].focus();
+                // 선택된 버튼에서 word와 positions 가져오기
+                const word = buttons[currentIndex].querySelector(".word").textContent.trim();
+                let positions;
+                try {
+                    positions = JSON.parse(buttons[currentIndex].dataset.positions); // 데이터셋에서 positions 가져오기
+                } catch (error) {
+                    console.error("Failed to parse positions:", buttons[currentIndex].dataset.positions);
+                    playVoiceMessage("점자 데이터를 처리하는 중 오류가 발생했습니다.", 'ko-KR', 1.0);
+                    return;
+                }
+
+                console.log(`Enter Key Pressed: ID=${buttons[currentIndex].dataset.id}, Word="${word}", Positions=${JSON.stringify(positions)}`);
+
+                // 각 내부 배열 처리: "일, 삼번" 형식으로 변환
+                const positionGroups = positions.map(group => {
+                    const koreanPositions = group.map(pos => convertNumberToKorean(pos)); // 숫자를 한글로 변환
+                    return koreanPositions.join(", ") + "번"; // 변환된 번호를 문자열로 결합
+                });
+
+                // 각 position 그룹에 해당하는 글자를 조합하여 메시지 생성
+                const message = `${positionGroups.join(", ")}`;
+
+                console.log(`Voice Message: "${message}"`);
+
+                // 메시지 음성 출력
+                playVoiceMessage(message, 'ko-KR', 0.6);
             }
         }
+    });
 
-        document.addEventListener("keydown", function (event) {
+    // 페이지 로드 시 초기화
+    document.addEventListener("DOMContentLoaded", () => {
+        playVoiceMessage("내 한글 단어장 페이지입니다.", 'ko-KR', 0.8, () => {
             const buttons = document.querySelectorAll("#selection button");
-
-            if (event.key === "ArrowRight") {
-                if (currentIndex < buttons.length - 1) {
-                    currentIndex++;
-                    setupButtons();
-                }
-            } else if (event.key === "ArrowLeft") {
-                if (currentIndex > 0) {
-                    currentIndex--;
-                    setupButtons();
-                }
-            } else if (event.key === "Enter") {
-                if (buttons[currentIndex]) {
-                    buttons[currentIndex].click();
-                }
+            if (buttons.length > 0) {
+                playVoiceMessage(buttons[0].textContent.trim(), 'ko-KR', 0.9); // 첫 번째 단어 읽기
             }
         });
+        setupButtons();
+        addButtonEventListeners();
+    });
 
-        // 페이지 로드 시 초기화
-        document.addEventListener("DOMContentLoaded", () => {
-            playVoiceMessage("내 한글 단어장 페이지입니다.");
-            setupButtons();
-        });
+    // Ctrl + Backspace -> 이전 페이지로 이동
+    document.addEventListener("keydown", function (event) {
+        if (event.ctrlKey && event.key === "Backspace") {
+            window.history.back();
+        }
+    });
+</script>
 
-        // Ctrl + Backspace -> 이전 페이지로 이동
-        document.addEventListener("keydown", function (event) {
-            if (event.ctrlKey && event.key === "Backspace") {
-                window.history.back();
-            }
-        });
-    </script>
+
 </body>
 </html>

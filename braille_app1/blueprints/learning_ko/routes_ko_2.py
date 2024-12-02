@@ -240,7 +240,7 @@ def get_current_input_buffer():
         'control_signal': control_signal
     })
 
-@learning_bp_ko.route('/', methods=['GET', 'POST'])
+@learning_bp_ko.route('/ko/2', methods=['GET', 'POST'])
 def index():
     """
     Handles the Learning section.
@@ -276,7 +276,7 @@ def index():
                 # Handle the case where no words are available in the database
                 flash("No words available in the database.", "error")
                 logging.warning("No words found in the database.")
-                return render_template('learning_ko/index.html')
+                return render_template('learning_ko/ko_2.html')
 
         # Determine whether to play word audio
         word_audio_played = session.get('word_audio_played', False)
@@ -290,7 +290,7 @@ def index():
         # Check if there's a feedback audio to play
         feedback_audio_url = session.pop('feedback_audio_url', None)
 
-        return render_template('learning_ko/index.html', target_word=word_entry.word, audio_url=audio_url, feedback_audio_url=feedback_audio_url)
+        return render_template('learning_ko/ko_2.html', target_word=word_entry.word, audio_url=audio_url, feedback_audio_url=feedback_audio_url)
 
     elif request.method == 'POST':
         control_signal_item = None
@@ -408,7 +408,7 @@ def handle_enter_signal():
                     audio_url = None
 
                 return render_template(
-                    'learning_ko/index.html',
+                    'learning_ko/ko_2.html',
                     target_word=new_word_entry.word if new_word_entry else None,
                     audio_url=audio_url,
                     feedback_audio_url=feedback_audio_url
@@ -506,7 +506,12 @@ def handle_ctrl_backspace_signal():
     Handles the 'Ctrl + Backspace' control signal by redirecting to the home menu.
     """
     logging.debug("Ctrl + Backspace signal detected. Redirecting to home menu.")
-    return redirect(url_for('home'))
+    # 학습 관련 세션 변수 초기화
+    session.pop('current_word_id', None)
+    session.pop('word_audio_played', None)
+    session.pop('feedback_audio_url', None)
+    g.keyboard.clear_input_buffer()
+    return redirect(url_for('learning_ko.learn_korean'))
 
 def handle_ctrl_enter_signal():
     """
@@ -569,7 +574,7 @@ def handle_ctrl_enter_signal():
 
     # Render the template with the stored word and feedback audio
     return render_template(
-        'learning_ko/index.html',
+        'learning_ko/ko_2.html',
         target_word=word_entry.word,
         audio_url=audio_url,
         feedback_audio_url=feedback_audio_url

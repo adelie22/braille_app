@@ -26,7 +26,7 @@
 
         p {
             font-size: 30px;          
-            color: #000;              
+            color: #000;               
             line-height: 1;         
             margin: 30px 0;          
         }
@@ -96,105 +96,110 @@
     </main>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            let currentIndex = 0;
-            const menuButtons = document.querySelectorAll('.menu-button');
-            const totalMenus = menuButtons.length;
+        // Initialize variables
+        let currentIndex = 0;
+        const menuButtons = document.querySelectorAll('.menu-button');
+        const totalMenus = menuButtons.length;
 
-            // Function to select a menu button
-            function selectMenu(index) {
-                // Remove 'selected' class from all buttons
-                menuButtons.forEach(btn => btn.classList.remove('selected'));
-                // Add 'selected' class to the current button
-                menuButtons[index].classList.add('selected');
-                // Optionally, set focus for accessibility
-                menuButtons[index].focus();
-                // Speak the selected button's text
-                speakMessage(getButtonText(menuButtons[index]));
-            }
+        // Function to select a menu button
+        function selectMenu(index) {
+            // Remove 'selected' class from all buttons
+            menuButtons.forEach(btn => btn.classList.remove('selected'));
+            // Add 'selected' class to the current button
+            menuButtons[index].classList.add('selected');
+            // Optionally, set focus for accessibility
+            menuButtons[index].focus();
+            // Speak the selected button's text
+            speakMessage(getButtonText(menuButtons[index]));
+        }
 
-            // Function to get button text
-            function getButtonText(button) {
-                return button.textContent.trim();
-            }
+        // Function to get button text
+        function getButtonText(button) {
+            return button.textContent.trim();
+        }
 
-            // Function to speak messages using Speech Synthesis
-            function speakMessage(message) {
-                //window.speechSynthesis.cancel(); // Stop any ongoing speech
+        // Function to speak messages using Speech Synthesis
+        function speakMessage(message) {
+            window.speechSynthesis.cancel(); // Stop any ongoing speech
+            setTimeout(() => {
                 const utterance = new SpeechSynthesisUtterance(message);
                 utterance.lang = 'ko-KR';
+                utterance.rate = 1; // 속도 설정
                 window.speechSynthesis.speak(utterance);
+            }, 100);
+        }
+
+        // Function to activate the selected menu
+        function activateMenu() {
+            const selectedButton = menuButtons[currentIndex];
+            selectedButton.click();
+        }
+
+        // Function to handle control signals
+        function handleControlSignal(signal) {
+            switch(signal) {
+                case 'Left':
+                    moveLeft();
+                    break;
+                case 'Right':
+                    moveRight();
+                    break;
+                case 'Enter':
+                    activateMenu();
+                    break;
+                default:
+                    console.warn(`Unhandled signal: ${signal}`);
             }
+        }
 
-            // Function to activate the selected menu
-            function activateMenu() {
-                const selectedButton = menuButtons[currentIndex];
-                selectedButton.click();
-            }
-
-             // Ensure speech is triggered on page load
-            function triggerInitialSpeech() {
-                // You could also include a user interaction here if necessary
-                speakMessage("안녕하세요. 배울점에 오신 것을 환영합니다.");
-            }
-
-            // Function to handle control signals
-            function handleControlSignal(signal) {
-                switch(signal) {
-                    case 'Left':
-                        moveLeft();
-                        break;
-                    case 'Right':
-                        moveRight();
-                        break;
-                    case 'Enter':
-                        activateMenu();
-                        break;
-                    default:
-                        console.warn(`Unhandled signal: ${signal}`);
-                }
-            }
-
-            // Move selection to the left (previous menu)
-            function moveLeft() {
-                currentIndex = (currentIndex - 1 + totalMenus) % totalMenus;
-                selectMenu(currentIndex);
-            }
-
-            // Move selection to the right (next menu)
-            function moveRight() {
-                currentIndex = (currentIndex + 1) % totalMenus;
-                selectMenu(currentIndex);
-            }
-
-            // Polling function to fetch Braille control signals
-            function pollBrailleSignals() {
-                fetch('/index/get_braille_signals')  // Specific endpoint for index.html
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        const controlSignals = data.control_signals;
-                        
-                        // Handle Control Signals
-                        controlSignals.forEach(signal => {
-                            handleControlSignal(signal);
-                        });
-                    })
-                    .catch(error => {
-                        console.error('Error polling Braille signals:', error);
-                    });
-            }
-
-            triggerInitialSpeech();  // Call the speech function directly on page load
-
-            // Initial selection and welcome message
+        // Move selection to the left (previous menu)
+        function moveLeft() {
+            currentIndex = (currentIndex - 1 + totalMenus) % totalMenus;
             selectMenu(currentIndex);
-            
+        }
 
+        // Move selection to the right (next menu)
+        function moveRight() {
+            currentIndex = (currentIndex + 1) % totalMenus;
+            selectMenu(currentIndex);
+        }
+
+        // Polling function to fetch Braille control signals
+        function pollBrailleSignals() {
+            fetch('/index/get_braille_signals')  // Specific endpoint for index.html
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    
+                    // Handle Control Signals
+                    controlSignals.forEach(signal => {
+                        handleControlSignal(signal);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error polling Braille signals:', error);
+                });
+        }
+
+        function playIntroMessage() {
+            window.speechSynthesis.cancel();
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance("안녕하세요. 배울점에 오신것을 환영합니다.");
+                utterance.lang = 'ko-KR';
+                utterance.rate = 1;
+                window.speechSynthesis.speak(utterance);
+            }, 100);
+        }
+
+        // Wait for DOM content to load and then execute initialization
+        document.addEventListener('DOMContentLoaded', function () {
+            playIntroMessage();  // Call the speech function directly on page load
+            selectMenu(currentIndex); // Initial selection and welcome message
             // Poll Braille signals every 500ms
             setInterval(pollBrailleSignals, 500);
 

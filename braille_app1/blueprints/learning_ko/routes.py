@@ -10,9 +10,9 @@ import logging
 logger = logging.getLogger(__name__)
 
 # /learn 페이지 라우트
-@learning_bp_ko.route('/')
-def learn():
-    return render_template('learning_ko/home.html')
+# @learning_bp_ko.route('/')
+# def learn():
+#     return render_template('learning_ko/home.html')
 
 @learning_bp_ko.route('/ko')
 def learn_korean():
@@ -22,9 +22,9 @@ def learn_korean():
 def learn_kor_1():
     return render_template('learning_ko/ko_1.html')
 
-@learning_bp_ko.route('/ko/2')
-def learn_kor_2():
-    return render_template('learning_ko/ko_2.html')
+# @learning_bp_ko.route('/ko/2')
+# def learn_kor_2():
+#     return render_template('learning_ko/ko_2.html')
 
 @learning_bp_ko.route('/ko/3')
 def fetch_ko_voca():

@@ -22,37 +22,24 @@
             display: none;
         }
 
-        /* 컨테이너에 Flexbox 적용하여 버튼을 수직으로 정렬 */
         #language-selection {
             display: flex;
             flex-direction: column;
-            /* 수직 배열 */
             align-items: center;
-            /* 중앙 정렬 */
         }
 
         button {
             width: 220px;
-            /* 고정 너비 */
             height: 90px;
-            /* 고정 높이 */
             padding: 10px 20px;
-            /* 내부 여백 조정 */
             font-size: 40px;
-            /* 동일한 폰트 크기 */
             font-weight: 800;
-            /* 폰트 굵기 */
             margin: 10px;
-            /* 버튼 간 간격 */
             cursor: pointer;
             border: 2px solid black;
-            /* 동일한 테두리 */
             border-radius: 10px;
-            /* 동일한 둥근 모서리 */
             background-color: #ffffff;
-            /* 버튼 배경색 */
             color: rgb(0, 0, 0);
-            /* 버튼 텍스트 색상 */
             transition: background-color 0.3s ease, color 0.3s ease;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
             outline: none;
@@ -79,29 +66,23 @@
     </header>
 
     <script>
-        let currentIndex = 0;
         const menuButtons = document.querySelectorAll('.menu-button');
-        const totalMenus = menuButtons.length;
+        let currentIndex = 0;
 
         // 음성 출력 함수
         function speakMessage(message) {
-            window.speechSynthesis.cancel(); // 기존 음성 중단
-            setTimeout(() => {
                 const utterance = new SpeechSynthesisUtterance(message);
                 utterance.lang = 'ko-KR';
                 window.speechSynthesis.speak(utterance);
-            }, 100); // 지연 시간 추가
         }
 
         // 페이지 초기화 시 음성 안내
         function playWelcomeMessage() {
             window.speechSynthesis.cancel(); // 기존 음성 중단
-            setTimeout(() => {
                 const utterance = new SpeechSynthesisUtterance("끝말잇기 언어 선택 화면입니다.");
                 utterance.lang = 'ko-KR';
-                utterance.rate = 0.8; // 느린 속도
+                utterance.rate = 1; // 느린 속도
                 window.speechSynthesis.speak(utterance);
-            }, 100); // 지연 시간 추가
         }
 
         // 초기화 함수
@@ -115,41 +96,51 @@
             return button.textContent.trim();
         }
 
-        // 메뉴 간 이동 함수 (위, 아래로)
-        function navigateMenu(direction) {
-            // 기존 선택된 버튼 해제
-            menuButtons[currentIndex].classList.remove('selected');
-
-            // 현재 진행 중인 음성 중단
-            window.speechSynthesis.cancel();
-
-            // 인덱스 업데이트
-            if (direction === 'up') {
-                currentIndex = (currentIndex - 1 + totalMenus) % totalMenus;
-            } else if (direction === 'down') {
-                currentIndex = (currentIndex + 1) % totalMenus;
-            }
-
-            // 새로운 버튼에 선택 표시 및 음성 출력
+        // 메뉴 선택 함수
+        function activateMenu() {
             const selectedButton = menuButtons[currentIndex];
-            selectedButton.classList.add('selected');
-            speakMessage(getButtonText(selectedButton));
-            selectedButton.focus();
+            selectedButton.click();
         }
 
-        // 키보드 이벤트 리스너 (위, 아래 방향키)
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'ArrowLeft') {
-                event.preventDefault();
-                navigateMenu('up');
-            } else if (event.key === 'ArrowRight') {
-                event.preventDefault();
-                navigateMenu('down');
-            } else if (event.key === 'Enter') {
-                // Enter 키로 버튼 클릭
-                menuButtons[currentIndex].click();
+        // Braille control signals: Left, Right, Enter, Ctrl+Backspace
+        function handleBrailleSignal(signal) {
+            if (signal === 'Left') {
+                moveLeft();
+            } else if (signal === 'Right') {
+                moveRight();
+            } else if (signal === 'Enter') {
+                activateMenu();
+            } else if (signal === 'Ctrl+Backspace') {
+                window.location.href = '/'; // Go back to the previous page
             }
-        });
+        }
+
+        // 메뉴 이동: 왼쪽
+        function moveLeft() {
+            menuButtons[currentIndex].classList.remove('selected');
+            currentIndex = (currentIndex - 1 + menuButtons.length) % menuButtons.length;
+            menuButtons[currentIndex].classList.add('selected');
+            speakMessage(getButtonText(menuButtons[currentIndex]));
+        }
+
+        // 메뉴 이동: 오른쪽
+        function moveRight() {
+            menuButtons[currentIndex].classList.remove('selected');
+            currentIndex = (currentIndex + 1) % menuButtons.length;
+            menuButtons[currentIndex].classList.add('selected');
+            speakMessage(getButtonText(menuButtons[currentIndex]));
+        }
+
+        // Poll Braille control signals from the backend
+        function pollBrailleSignals() {
+            fetch('/index/get_braille_signals')  // Backend endpoint to get signals
+                .then(response => response.json())
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    controlSignals.forEach(signal => handleBrailleSignal(signal));
+                })
+                .catch(error => console.error('Error fetching Braille signals:', error));
+        }
 
         // 버튼 클릭 이벤트
         menuButtons.forEach((button) => {
@@ -159,7 +150,7 @@
                     window.location.href = "/word_chain_ko";
                 } else if (buttonId === 'english-btn') {
                     window.location.href = "/word_chain_en";
-                } 
+                }
             });
         });
 
@@ -169,11 +160,8 @@
             initializeMenu();
         });
 
-        document.addEventListener("keydown", function (event) {
-        if (event.ctrlKey && event.key === "Backspace") {
-            window.history.back(); // 이전 페이지로 이동
-        }
-        });
+        // Poll Braille signals every 500ms
+        setInterval(pollBrailleSignals, 500);  // Every 500ms
     </script>
 </body>
 

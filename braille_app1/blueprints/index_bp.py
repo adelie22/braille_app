@@ -11,6 +11,7 @@ def get_braille_signals():
     API endpoint to fetch and return the latest Braille control signals specific to index.html.
     This endpoint should be polled by the frontend of index.html to receive signals.
     """
+    g.keyboard.set_buffered_mode(False)
     control_signals = []
     
     # Fetch all control signals

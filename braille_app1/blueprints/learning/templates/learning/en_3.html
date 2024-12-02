@@ -68,7 +68,7 @@
     </div>
 
     <script>
-            const englishBraille = {
+        const englishBraille = {
             'a': { dots: '⠁', positions: [1] },
             'b': { dots: '⠃', positions: [1, 2] },
             'c': { dots: '⠉', positions: [1, 4] },
@@ -97,23 +97,24 @@
             'z': { dots: '⠵', positions: [1, 3, 5, 6] }
         };
 
-        document.addEventListener("DOMContentLoaded", () => {
+        let currentIndex = 0;
+
+        function setupButtons() {
             const buttons = document.querySelectorAll("#selection button");
-            
-            buttons.forEach(button => {
-                const word = button.querySelector(".word").textContent.toLowerCase();
-                const dotsContainer = button.querySelector(".dots");
-                
-                let brailleDots = "";
-                for (const char of word) {
-                    if (englishBraille[char]) {
-                        brailleDots += englishBraille[char].dots + " ";
-                    }
+
+            buttons.forEach((button, index) => {
+                button.classList.remove("selected");
+                button.onclick = null;
+
+                if (index === currentIndex) {
+                    button.classList.add("selected");
                 }
-                
-                dotsContainer.textContent = brailleDots.trim();
             });
-        });
+
+            if (buttons[currentIndex]) {
+                buttons[currentIndex].focus();
+            }
+        }
 
         function playVoiceMessage(message, lang = 'ko-KR', rate = 0.8, callback = null) {
             const utterance = new SpeechSynthesisUtterance(message);
@@ -136,57 +137,62 @@
             return brailleMessage.join(", ");
         }
 
-        let currentIndex = 0;
-
-        function setupButtons() {
+        // Function to handle Braille keyboard signals
+        function handleBrailleSignal(signal) {
             const buttons = document.querySelectorAll("#selection button");
 
-            buttons.forEach((button, index) => {
-                button.classList.remove("selected");
-                button.onclick = null;
-
-                if (index === currentIndex) {
-                    button.classList.add("selected");
-                }
-            });
-
-            if (buttons[currentIndex]) {
-                buttons[currentIndex].focus();
-            }
-        }
-
-        document.addEventListener("keydown", function (event) {
-            const buttons = document.querySelectorAll("#selection button");
-
-            if (event.key === "ArrowRight") {
-                if (currentIndex < buttons.length - 1) {
-                    currentIndex++;
-                    setupButtons();
-                    playVoiceMessage(buttons[currentIndex].textContent.trim(), 'en-US', 0.9);
-                }
-            } else if (event.key === "ArrowLeft") {
+            if (signal === 'Left') {
                 if (currentIndex > 0) {
                     currentIndex--;
                     setupButtons();
-                    playVoiceMessage(buttons[currentIndex].textContent.trim(), 'en-US', 0.9);
+                    playVoiceMessage(buttons[currentIndex].textContent.trim(), 'en-US', 1);
                 }
-            } else if (event.key === "Enter") {
+            } else if (signal === 'Right') {
+                if (currentIndex < buttons.length - 1) {
+                    currentIndex++;
+                    setupButtons();
+                    playVoiceMessage(buttons[currentIndex].textContent.trim(), 'en-US', 1);
+                }
+            } else if (signal === 'Enter') {
                 if (buttons[currentIndex]) {
                     const word = buttons[currentIndex].textContent.trim();
                     const brailleMessage = formatBrailleMessage(word);
                     playVoiceMessage(brailleMessage, 'en-US', 0.3);
                 }
+            } else if (signal === 'Ctrl+Backspace') {
+                // You can add any additional behavior for Ctrl+Backspace if necessary.
+                // For example, navigate back or do a different action.
+                //playVoiceMessage("Back", 'en-US', 1);
+                window.location.href = "/learning/en"
             }
-        });
+        }
 
+        // Poll Braille signals every 500ms
+        function pollBrailleSignals() {
+            fetch('/index/get_braille_signals')  // Endpoint to get Braille signals
+                .then(response => response.json())
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    controlSignals.forEach(signal => {
+                        handleBrailleSignal(signal);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error polling Braille signals:', error);
+                });
+        }
+
+        // Initial setup
         document.addEventListener("DOMContentLoaded", () => {
-            playVoiceMessage("내 영어 단어장 화면입니다.", 'ko-KR', 0.8, () => {
+            playVoiceMessage("내 영어 단어장 화면입니다.", 'ko-KR', 1, () => {
                 const buttons = document.querySelectorAll("#selection button");
                 if (buttons.length > 0) {
-                    playVoiceMessage(buttons[0].textContent.trim(), 'en-US', 0.9); // 첫 번째 단어 읽기
+                    playVoiceMessage(buttons[0].textContent.trim(), 'en-US', 1); // 첫 번째 단어 읽기
                 }
             });
+
             setupButtons();
+            setInterval(pollBrailleSignals, 500);  // Poll Braille signals
         });
     </script>
 </body>
