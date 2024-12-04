@@ -363,8 +363,11 @@
 
             // Function to navigate back to the diary menu
             function navigateToMenu() {
-                speakMessage('Returning to the diary menu.');
-                window.location.href = '/diary';
+                speakMessage('Returning to menu.');
+                setTimeout(function() {
+                    window.location.href = '/diary';
+                }, 2000);  // 2000ms = 2 seconds
+                //window.location.href = '/diary';
             }
 
             // Function to save the diary entry

@@ -97,20 +97,27 @@
         const menuButtons = document.querySelectorAll('.menu-button');
         const totalMenus = menuButtons.length;
 
+      
+
         // 음성 출력 함수
         function speakMessage(message) {
+            window.speechSynthesis.cancel();
+            setTimeout(() => {
             const utterance = new SpeechSynthesisUtterance(message);
             utterance.lang = 'ko-KR';
             window.speechSynthesis.speak(utterance);
+            }, 100);
         }
 
         // 페이지 초기화 시 음성 안내
         function playWelcomeMessage() {
-            window.speechSynthesis.cancel(); // 기존 음성 중단
+            window.speechSynthesis.cancel();
+            setTimeout(() => {
             const utterance = new SpeechSynthesisUtterance("영어 학습 단계 선택 화면입니다.");
             utterance.lang = 'ko-KR';
             utterance.rate = 1; // 느린 속도
             window.speechSynthesis.speak(utterance);
+            }, 100);
         }
 
         // 초기화 함수

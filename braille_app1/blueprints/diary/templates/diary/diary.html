@@ -204,15 +204,6 @@
                     const utterance = new SpeechSynthesisUtterance(message);
                     utterance.lang = lang; // Set language
                     
-                    // Select a voice that matches the language
-                    const voices = window.speechSynthesis.getVoices();
-                    const matchedVoice = voices.find(voice => voice.lang.startsWith(lang));
-                    if (matchedVoice) {
-                        utterance.voice = matchedVoice;
-                    } else {
-                        console.warn(`No voice found for language: ${lang}. Using default voice.`);
-                    }
-                    
                     utterance.onstart = () => { isSpeaking = true; };
                     utterance.onend = () => { isSpeaking = false; };
                     window.speechSynthesis.speak(utterance);

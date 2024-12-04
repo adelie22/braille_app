@@ -83,21 +83,29 @@
 
         let currentIndex = 0;
 
+
+        
+
         // 음성 출력 함수
         function playVoiceMessage(message) {
-            const utterance = new SpeechSynthesisUtterance(message);
-            utterance.lang = 'ko-KR';
-            utterance.rate = 1;
-            speechSynthesis.speak(utterance);
+            window.speechSynthesis.cancel();
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(message);
+                utterance.lang = 'ko-KR';
+                utterance.rate = 1;
+                speechSynthesis.speak(utterance);
+            }, 100);
         }
 
         // 페이지 초기화 시 음성 안내
         function playWelcomeMessage() {
             window.speechSynthesis.cancel(); // 기존 음성 중단
-            const utterance = new SpeechSynthesisUtterance("알파벳 학습 화면입니다.");
-            utterance.lang = 'ko-KR';
-            utterance.rate = 1; // 느린 속도
-            window.speechSynthesis.speak(utterance);
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance("알파벳 학습 화면입니다.");
+                utterance.lang = 'ko-KR';
+                utterance.rate = 1; // 느린 속도
+                window.speechSynthesis.speak(utterance);
+            }, 100);
         }
 
         function convertNumberToKorean(num) {

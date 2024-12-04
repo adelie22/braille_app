@@ -2,8 +2,8 @@
 
 from . import learning_bp_ko
 from flask import (
-    render_template, request, session, g, redirect, url_for,
-    flash, send_file, jsonify, current_app
+    render_template, request, session, redirect, url_for,
+    flash, send_file, jsonify
 )
 from extensions import db
 from models import KoVoca, KoGrade1
@@ -18,21 +18,15 @@ from interfaces.hardware_keyboard import HardwareBrailleKeyboard
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
 
-
-
-# routes.py 또는 적절한 위치에 추가
 #===========================LED관련==================================================
-import serial
+
 import time
 from threading import Timer
-from threading import Lock
 
+# 싱글턴 인스턴스 가져오기 (적절한 포트로 변경)
+keyboard = HardwareBrailleKeyboard.get_instance(port='/dev/ttyUSB0')  # 실제 포트로 변경
 
 #===========================LED관련==================================================
-
-
-# Path to your Braille translation table
-# BRAILLE_TABLE = "/home/guru/liblouis-3.21.0/tables/en-us-g1.ctb"
 
 # Initialize Google TTS client
 tts_client = texttospeech.TextToSpeechClient()
@@ -57,7 +51,6 @@ def braille_number_to_dots(number):
     return []
 
 def generate_braille_buttons_feedback(word):
-
     braille_buttons_feedback = []
     
     # 1. 한국어 단어를 점자 유니코드로 번역
@@ -222,9 +215,9 @@ def get_current_input_buffer():
     """
     Returns the current input buffer and cursor position.
     """
-    input_buffer = g.keyboard.get_current_input_buffer()
-    cursor_position = g.keyboard.get_cursor_position()
-    control_signal = g.keyboard.peek_control_signal()
+    input_buffer = keyboard.get_current_input_buffer()
+    cursor_position = keyboard.get_cursor_position()
+    control_signal = keyboard.peek_control_signal()
     
     if control_signal:
         logging.debug(f"Control signal included in response: {control_signal}")
@@ -246,7 +239,7 @@ def index():
     """
     if request.method == 'GET':
         # Enable buffered mode at the start of a learning session
-        g.keyboard.set_buffered_mode(True)
+        keyboard.set_buffered_mode(True)
         logging.debug("Buffered mode set to True for learning session.")
 
         # Attempt to retrieve the current word from the session
@@ -293,7 +286,7 @@ def index():
         control_signal_item = None
 
         while True:
-            signal = g.keyboard.read_input()
+            signal = keyboard.read_input()
             if not signal:
                 break
             if signal.get('type') == 'control':
@@ -337,11 +330,11 @@ def handle_enter_signal():
     Handles the 'Enter' control signal by processing the input buffer.
     Generates feedback audio with correct Braille button instructions if the input is wrong.
     """
-    if g.keyboard.buffered_mode and g.keyboard.input_buffer:
-        with g.keyboard.lock:
-            input_buffer = list(g.keyboard.input_buffer)
-            g.keyboard.input_buffer = []
-            g.keyboard.cursor_position = 0  # Reset cursor position
+    if keyboard.buffered_mode and keyboard.input_buffer:
+        with keyboard.lock:
+            input_buffer = list(keyboard.input_buffer)
+            keyboard.input_buffer = []
+            keyboard.cursor_position = 0  # Reset cursor position
 
         if input_buffer:
             # Process the input_buffer as braille_input
@@ -389,7 +382,7 @@ def handle_enter_signal():
                 flash("Correct!", "success")
                 logging.info("User entered the correct word.")
                 # Generate feedback audio for correct input
-                feedback_audio_url = generate_feedback_audio('정답입니다. 다음 단어는', 'feedback_correct.mp3', '입니다')
+                feedback_audio_url = generate_feedback_audio('정답입니다. 다음 단어는', 'feedback_correct.mp3')
                 if feedback_audio_url:
                     session['feedback_audio_url'] = feedback_audio_url
                 # Select the next word
@@ -411,57 +404,47 @@ def handle_enter_signal():
                     feedback_audio_url=feedback_audio_url
                 )
             else:
-                 # Incorrect input logic
+                # Incorrect input logic
                 flash("Incorrect input.", "error")
                 logging.info(f"User entered incorrect word: {entered_word} (expected: {target_word})")
 
                 # Generate Braille button feedback for each letter in the target word
                 braille_feedback = generate_braille_buttons_feedback(target_word)
-    
+
                 # 포맷팅: 각 점자 버튼 리스트를 "1,2,3점" 형식으로 변환
                 formatted_braille_feedback = ", ".join([",".join(map(str, dots)) + "점" for dots in braille_feedback])
-    
+
                 # 피드백 텍스트 생성
                 feedback_text = f"오답입니다. '{target_word}' 는 '{formatted_braille_feedback}' 입니다."
 
                 # 음성 출력용 피드백 텍스트 설정 (필요시)
-                # 예를 들어, TTS로 변환할 때 사용
                 feedback_audio_url = generate_feedback_audio(feedback_text, 'wrong_feedback.mp3')
 
-                 # LED 번호 추출 및 정렬
-                led_numbers = set()
-                for dots in braille_feedback:
-                    led_numbers.update(dots)
-                led_numbers = sorted(led_numbers)
+                # LED 순차 점등
+                for index, led_group in enumerate(braille_feedback):
+                    # LED 켜기 명령 전송 (인덱스별로 순차적으로 점등)
+                    Timer(index * 2.0, lambda group=led_group, kb=keyboard: kb.queue_led_command(group, action='ON')).start()
+                    logging.debug(f"Scheduled ON command for LED group {index + 1}: {led_group}")
 
-                # LED 켜기 명령 전송
-                g.keyboard.send_led_command(led_numbers, action='ON')
+                    # LED 끄기 명령 전송 (2초 후 소등)
+                    Timer((index + 1) * 2.0, lambda group=led_group, kb=keyboard: kb.queue_led_command(group, action='OFF')).start()
+                    logging.debug(f"Scheduled OFF command for LED group {index + 1}: {led_group}")
 
-                # 오디오 길이에 맞춰 LED 끄기 (예: 2초 후)
-                Timer(2.0, g.keyboard.send_led_command, args=(led_numbers, 'OFF')).start()
-
-                # 세션에 피드백 텍스트 저장
+                # 세션에 피드백 오디오 URL 저장 (필요 시)
                 if feedback_audio_url:
                     session['feedback_audio_url'] = feedback_audio_url
 
-                # 피드백 텍스트를 로그 또는 다른 용도로 사용
+                # 로그 추가
                 logging.debug(f"Feedback Text: {feedback_text}")
 
                 return redirect(url_for('learning_ko.index'))
-
-
-
-    else:
-        logging.debug("Input buffer is empty or buffered mode is not enabled upon 'Enter' signal.")
-        flash("No input detected or buffered mode not enabled.", "error")
-        return redirect(url_for('learning_ko.index'))
 
 def handle_back_signal():
     """
     Handles the 'Back' control signal by deleting the character at the current cursor position
     and announcing 'Delete' via audio.
     """
-    success = g.keyboard.delete_at_cursor()
+    success = keyboard.delete_at_cursor()
     if success:
         flash("Character deleted.", "info")
     else:
@@ -471,7 +454,6 @@ def handle_back_signal():
     feedback_audio_url = generate_feedback_audio("Delete", 'delete.mp3')
     if feedback_audio_url:
         session['feedback_audio_url'] = feedback_audio_url
-
     return redirect(url_for('learning_ko.index'))
 
 def handle_left_signal():
@@ -479,7 +461,7 @@ def handle_left_signal():
     Handles the 'Left' control signal by moving the cursor one position to the left
     and announcing 'Left' via audio.
     """
-    success = g.keyboard.move_cursor_left()
+    success = keyboard.move_cursor_left()
     if success:
         flash("Moved cursor left.", "info")
     else:
@@ -489,7 +471,6 @@ def handle_left_signal():
     feedback_audio_url = generate_feedback_audio("Left", 'left.mp3')
     if feedback_audio_url:
         session['feedback_audio_url'] = feedback_audio_url
-
     return redirect(url_for('learning_ko.index'))
 
 def handle_right_signal():
@@ -497,7 +478,7 @@ def handle_right_signal():
     Handles the 'Right' control signal by moving the cursor one position to the right
     and announcing 'Right' via audio.
     """
-    success = g.keyboard.move_cursor_right()
+    success = keyboard.move_cursor_right()
     if success:
         flash("Moved cursor right.", "info")
     else:
@@ -507,7 +488,6 @@ def handle_right_signal():
     feedback_audio_url = generate_feedback_audio("Right", 'right.mp3')
     if feedback_audio_url:
         session['feedback_audio_url'] = feedback_audio_url
-
     return redirect(url_for('learning_ko.index'))
 
 def handle_ctrl_backspace_signal():
@@ -519,7 +499,7 @@ def handle_ctrl_backspace_signal():
     session.pop('current_word_id', None)
     session.pop('word_audio_played', None)
     session.pop('feedback_audio_url', None)
-    g.keyboard.clear_input_buffer()
+    keyboard.clear_input_buffer()
     return redirect(url_for('learning_ko.learn_korean'))
 
 def handle_ctrl_enter_signal():
@@ -532,14 +512,12 @@ def handle_ctrl_enter_signal():
         flash("No target word to store.", "error")
         logging.error("No target word found in session.")
         return redirect(url_for('learning_ko.index'))
-
     # Retrieve the word entry from KoGrade1 by its ID
     word_entry = KoGrade1.query.get(target_word_id)
     if not word_entry:
         flash("Target word not found.", "error")
         logging.error(f"Word with ID '{target_word_id}' not found for storing.")
         return redirect(url_for('learning_ko.index'))
-
     # Check if the word already exists in KoVoca to prevent duplicates
     existing_entry = KoVoca.query.filter_by(word=word_entry.word).first()
     if existing_entry:
@@ -550,7 +528,7 @@ def handle_ctrl_enter_signal():
         feedback_audio_url = generate_feedback_audio(f"'{word_entry.word}' is already in your vocabulary list.", 'already_in_list.mp3')
         if feedback_audio_url:
             session['feedback_audio_url'] = feedback_audio_url
-            
+        
         audio_url = None  # No need to trigger word audio again
         
     else:
@@ -561,12 +539,10 @@ def handle_ctrl_enter_signal():
             db.session.commit()
             flash(f"'{word_entry.word}' stored in your vocabulary list.", "success")
             logging.info(f"Word '{word_entry.word}' successfully stored in KoVoca.")
-
             # Generate feedback audio saying "Stored in your list"
             feedback_audio_url = generate_feedback_audio(f"'{word_entry.word}' stored in your vocabulary list.", 'stored.mp3')
             if feedback_audio_url:
                 session['feedback_audio_url'] = feedback_audio_url
-
             # Now, trigger the audio of the word itself if it hasn't been played yet
             word_audio_played = session.get('word_audio_played', False)
             if not word_audio_played:
@@ -575,12 +551,10 @@ def handle_ctrl_enter_signal():
                 logging.debug(f"Word audio will be played: {audio_url}")
             else:
                 audio_url = None  # Do not play audio again
-
         except Exception as e:
             db.session.rollback()
             flash("Error storing the word in vocabulary list.", "error")
             logging.error(f"Error storing word in KoVoca: {e}")
-
     # Render the template with the stored word and feedback audio
     return render_template(
         'learning_ko/ko_2.html',

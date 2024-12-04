@@ -179,11 +179,7 @@
 
             // Function to play voice messages using Speech Synthesis
             function playVoiceMessage(message, lang = 'ko-KR', rate = 1, callback = null) {
-                if (!('speechSynthesis' in window)) {
-                    console.error("Speech Synthesis not supported in this browser.");
-                    return;
-                }
-
+                window.speechSynthesis.cancel();    
                 const utterance = new SpeechSynthesisUtterance(message);
                 utterance.lang = lang;
                 utterance.rate = rate;

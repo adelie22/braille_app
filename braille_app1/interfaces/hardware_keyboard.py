@@ -5,6 +5,7 @@ import queue
 import logging
 import serial
 import time
+# from flask import current_app
 
 # Configure logging
 logging.basicConfig(
@@ -35,19 +36,26 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
     """
     def __init__(self, port, baudrate=9600, timeout=5):
         self.input_buffer = []       # Buffer storing Braille inputs as binary strings
-        self.queue = queue.Queue(maxsize=10)  # Queue for control signals
+        self.control_queue = queue.Queue(maxsize=10)  # Queue for control signals
+        self.command_queue = queue.Queue()  # Queue for LED commands
         self.buffered_mode = False   # Determines if inputs are buffered
         self.cursor_position = 0     # Current cursor position within input_buffer
         self.lock = threading.Lock()
-        
+        self.serial_lock = threading.Lock()  # Lock for serial port access
+
         try:
             self.serial_port = serial.Serial(port, baudrate, timeout=timeout)
             logging.info(f"Connected to Arduino on port {port} at {baudrate} baud.")
             time.sleep(2)  # Allow time for the serial connection to initialize
 
             # Start a separate thread to read from the serial port continuously
-            self.thread = threading.Thread(target=self._serial_read_thread, daemon=True)
-            self.thread.start()
+            self.read_thread = threading.Thread(target=self._serial_read_thread, daemon=True)
+            self.read_thread.start()
+
+            # Start a separate thread to process LED commands
+            self.command_thread = threading.Thread(target=self._process_commands, daemon=True)
+            self.command_thread.start()
+
         except serial.SerialException as e:
             logging.error(f"Failed to connect to Arduino on port {port}: {e}")
             self.serial_port = None
@@ -76,7 +84,7 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
                             control_signal = line.replace("Control Signal: ", "")
                             logging.info(f"Received Control Signal: {control_signal}")
                             try:
-                                self.queue.put({
+                                self.control_queue.put({
                                     'type': 'control',
                                     'data': control_signal
                                 }, block=False)
@@ -87,14 +95,76 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
                 logging.error(f"Unexpected error in serial read thread: {e}")
             time.sleep(0.1)  # Prevent tight loop
 
+#=====================LED 데이터 -> 아두이노 전송 (큐로 처리하면 이 함수 필요없음)===================          
+    # def send_led_command(self, led_numbers, action='ON'):
+    #     """
+    #     Sends LED control commands to Arduino.
+    #     led_numbers: list of LED numbers (e.g., [1, 2, 3])
+    #     action: 'ON' or 'OFF'
+    #     """
+    #     if self.serial_port and self.serial_port.is_open:
+    #         command = f"{action}:{','.join(map(str, led_numbers))}\n"
+    #         try:
+    #             self.serial_port.write(command.encode())
+    #             logging.debug(f"Sent LED command via serial: {command}")
+    #         except Exception as e:
+    #             logging.error(f"Failed to send LED command: {e}")
+    #     else:
+    #         logging.error("Serial port is not open. Cannot send LED command.")
+
+    def _process_commands(self):
+        """
+        Continuously processes LED commands from the command queue and sends them to Arduino.
+        """
+        while True:
+            try:
+                command = self.command_queue.get()
+                if command:
+                    led_numbers = command['led_numbers']
+                    action = command['action']
+                    self._send_led_command_internal(led_numbers, action)
+                self.command_queue.task_done()
+            except Exception as e:
+                logging.error(f"Error processing LED command: {e}")
+
+    def _send_led_command_internal(self, led_numbers, action='ON'):
+        """
+        Internal method to send LED commands without involving Flask's app context.
+        """
+        with self.serial_lock:
+            if self.serial_port and self.serial_port.is_open:
+                command_str = f"{action}:{','.join(map(str, led_numbers))}\n"
+                try:
+                    self.serial_port.write(command_str.encode())
+                    logging.debug(f"Sent LED command via serial: {command_str.strip()}")
+                except Exception as e:
+                    logging.error(f"Failed to send LED command: {e}")
+            else:
+                logging.error("Serial port is not open. Cannot send LED command.")
+
+    def queue_led_command(self, led_numbers, action='ON'):
+        """
+        Enqueue an LED command to be processed by the command thread.
+        led_numbers: list of LED numbers (e.g., [1, 2, 3])
+        action: 'ON' or 'OFF'
+        """
+        try:
+            self.command_queue.put({
+                'led_numbers': led_numbers,
+                'action': action
+            }, block=True)  # block=True ensures the command is enqueued
+            logging.debug(f"Queued LED command: {action} {led_numbers}")
+        except queue.Full:
+            logging.warning(f"Command queue is full. Discarding LED command: {action} {led_numbers}")
+
     def read_input(self):
         """
-        Retrieve signals from the queue.
+        Retrieve signals from the control queue.
         Returns a dictionary containing signal type and data if available.
         """
-        if not self.queue.empty():
-            input_signal = self.queue.get()
-            logging.debug(f"Input signal retrieved from queue: {input_signal}")
+        if not self.control_queue.empty():
+            input_signal = self.control_queue.get()
+            logging.debug(f"Input signal retrieved from control queue: {input_signal}")
             return input_signal
         return None
 
@@ -133,36 +203,62 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
         """
         Peek at the next control signal without removing it from the queue.
         """
-        with self.queue.mutex:
-            for item in list(self.queue.queue):
+        with self.control_queue.mutex:
+            for item in list(self.control_queue.queue):
                 if item.get('type') == 'control':
                     return item.get('data')
         return None
 
     # Cursor Management Methods
-    def move_cursor_left(self):
-        """
-        Move the cursor one position to the left.
-        """
+    # def move_cursor_left(self):
+    #     """
+    #     Move the cursor one position to the left.
+    #     """
+    #     with self.lock:
+    #         logging.debug(f"Attempting to move cursor left from position {self.cursor_position}.")
+    #         if self.cursor_position > 0:
+    #             self.cursor_position -= 1
+    #             logging.debug(f"Cursor successfully moved left to position {self.cursor_position}.")
+    #         else:
+    #             logging.debug("Cursor is already at the beginning of the input buffer.")
+
+    # def move_cursor_right(self):
+    #     """
+    #     Move the cursor one position to the right.
+    #     """
+    #     with self.lock:
+    #         logging.debug(f"Attempting to move cursor right from position {self.cursor_position}.")
+    #         if self.cursor_position < len(self.input_buffer) - 1:
+    #             self.cursor_position += 1
+    #             logging.debug(f"Cursor successfully moved right to position {self.cursor_position}.")
+    #         else:
+    #             logging.debug("Cursor is already at the end of the input buffer.")
+    def move_cursor_left(self): # 이 코드 문제 발생하면 위에 주석 처리된걸로 대체하기
+
         with self.lock:
             logging.debug(f"Attempting to move cursor left from position {self.cursor_position}.")
             if self.cursor_position > 0:
                 self.cursor_position -= 1
                 logging.debug(f"Cursor successfully moved left to position {self.cursor_position}.")
+                return True
             else:
                 logging.debug("Cursor is already at the beginning of the input buffer.")
+                return False
 
     def move_cursor_right(self):
-        """
-        Move the cursor one position to the right.
-        """
+
         with self.lock:
             logging.debug(f"Attempting to move cursor right from position {self.cursor_position}.")
             if self.cursor_position < len(self.input_buffer) - 1:
                 self.cursor_position += 1
                 logging.debug(f"Cursor successfully moved right to position {self.cursor_position}.")
+                return True
             else:
                 logging.debug("Cursor is already at the end of the input buffer.")
+                return False
+
+
+    
 
     def delete_at_cursor(self):
         """
@@ -205,19 +301,15 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
             else:
                 self.cursor_position = 0
                 logging.debug("Cursor position adjusted to start (0).")
-#====================led관련 추가==================
-    def send_led_command(self, led_numbers, action='ON'):
+
+    @classmethod
+    def get_instance(cls, port='COM3', baudrate=9600, timeout=5):
         """
-        Sends LED control commands to Arduino.
-        led_numbers: list of LED numbers (e.g., [1, 2, 3])
-        action: 'ON' or 'OFF'
+        Get the singleton instance of HardwareBrailleKeyboard.
         """
-        if self.serial_port and self.serial_port.is_open:
-            command = f"{action}:{','.join(map(str, led_numbers))}\n"
-            try:
-                self.serial_port.write(command.encode())
-                logging.debug(f"Sent LED command via serial: {command.strip()}")
-            except Exception as e:
-                logging.error(f"Failed to send LED command: {e}")
-        else:
-            logging.error("Serial port is not open. Cannot send LED command.")
+        return cls(port, baudrate, timeout)
+
+
+
+
+      

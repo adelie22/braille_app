@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, current_app, g, flash
+from flask import Blueprint, request, jsonify, current_app, g, flash, session
 from word_chain_en.logic import check_word_validity, generate_next_word, translate_braille_to_text
 import logging
 
@@ -189,6 +189,7 @@ def reset_game():
     # Flask의 current_app.config로 history 초기화
     history = current_app.config.setdefault('HISTORY_EN', [])
     history.clear()  # 기록 초기화
+    g.keyboard.clear_input_buffer()
     print('Server-side history after reset:', history)
     return jsonify({"message": "Game has been reset."}), 200
 
@@ -200,4 +201,14 @@ def clear_buffer():
     """
     g.keyboard.clear_input_buffer()  # Clear the input buffer in the backend
     logging.info("Cleared input buffer.")
+    return jsonify({"success": True}), 200
+
+@word_chain_en_api.route('/word_chain_en/clear_flash', methods=['POST'])
+def clear_flash():
+    """
+    Clear all flash messages from the session.
+    This endpoint should be called when exiting the word_chain section.
+    """
+    session.pop('_flashes', None)  # Remove all flash messages
+    logging.info("Flash messages cleared.")
     return jsonify({"success": True}), 200

@@ -333,9 +333,30 @@ document.addEventListener('DOMContentLoaded', function () {
     // Quit the game and return to menu
     function quitGame() {
         speakMessage('Exiting the game. Returning to the menu.');
+        clearFlashMessages();
         window.location.href = "/word_chain_menu"; // Update with actual menu URL
     }
-
+        // Function to clear flash messages when leaving the page or game
+    function clearFlashMessages() {
+        // Send a request to clear flash messages in the backend
+        fetch('/word_chain_en/clear_flash', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        })
+        .then((response) => response.json())
+        .then((data) => {
+            if (data.success) {
+                console.log('Flash messages cleared successfully.');
+            } else {
+                console.error('Failed to clear flash messages.');
+            }
+        })
+        .catch((error) => {
+            console.error('Error clearing flash messages:', error);
+        });
+    }
     // Initialize the game on page load
     function initializeGame() {
         // Optionally, reset the game state on initialization
