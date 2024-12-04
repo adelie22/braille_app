@@ -95,12 +95,12 @@
         <div class="button-container">
             <!-- First Row: Button 3, Button 2, Button 1, Button 4, Button 5, Button 6, Backspace -->
             <div class="button-row">
-                <button class="button" id="button3-btn">버튼 3</button>
-                <button class="button" id="button2-btn">버튼 2</button>
-                <button class="button" id="button1-btn">버튼 1</button>
-                <button class="button" id="button4-btn">버튼 4</button>
-                <button class="button" id="button5-btn">버튼 5</button>
-                <button class="button" id="button6-btn">버튼 6</button>
+                <button class="button" id="button3-btn">3점</button>
+                <button class="button" id="button2-btn">2점</button>
+                <button class="button" id="button1-btn">1점</button>
+                <button class="button" id="button4-btn">4점</button>
+                <button class="button" id="button5-btn">5점</button>
+                <button class="button" id="button6-btn">6점</button>
                 <button class="button" id="backspace-btn">백스페이스</button>
             </div>
 
@@ -138,12 +138,12 @@
                 'Space': '스페이스',
     
                 // Braille Signals
-                '000001': '버튼 1',
-                '000010': '버튼 2',
-                '000100': '버튼 3',
-                '001000': '버튼 4',
-                '010000': '버튼 5',
-                '100000': '버튼 6'
+                '000001': '일점',
+                '000010': '이점',
+                '000100': '삼점',
+                '001000': '사점',
+                '010000': '오점',
+                '100000': '육점'
             };
     
             // Function to speak a given message
@@ -187,12 +187,12 @@
                     '엔터': 'enter-btn',
                     '백스페이스': 'backspace-btn',
                     '스페이스': 'space-btn',
-                    '버튼 1': 'button1-btn',
-                    '버튼 2': 'button2-btn',
-                    '버튼 3': 'button3-btn',
-                    '버튼 4': 'button4-btn',
-                    '버튼 5': 'button5-btn',
-                    '버튼 6': 'button6-btn'
+                    '일점': 'button1-btn',
+                    '이점': 'button2-btn',
+                    '삼점': 'button3-btn',
+                    '사점': 'button4-btn',
+                    '오점': 'button5-btn',
+                    '육점': 'button6-btn'
                 };
     
                 const buttonId = messageToButtonId[message];

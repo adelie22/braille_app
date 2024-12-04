@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
-    <meta charset="UTF-8">   
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>한글 자모음 학습</title>
     <style>
@@ -48,6 +49,7 @@
         }
     </style>
 </head>
+
 <body>
     <h1>한글 자모음 학습!</h1>
     <div id="brailleContainer"></div>
@@ -91,24 +93,24 @@
 
         // 음성 출력 함수
         function playVoiceMessage(message) {
-            window.speechSynthesis.cancel();
+            window.speechSynthesis.cancel(); // 기존 음성 중단
             setTimeout(() => {
             const utterance = new SpeechSynthesisUtterance(message);
             utterance.lang = 'ko-KR';
             utterance.rate = 1;
             speechSynthesis.speak(utterance);
-            }, 100);
+        }, 100);
         }
 
         // 페이지 초기화 시 음성 안내
         function playWelcomeMessage() {
-            window.speechSynthesis.cancel();
+            window.speechSynthesis.cancel(); // 기존 음성 중단
             setTimeout(() => {
             const utterance = new SpeechSynthesisUtterance("자모음 학습 화면입니다.");
             utterance.lang = 'ko-KR';
             utterance.rate = 1; // 느린 속도
             window.speechSynthesis.speak(utterance);
-            }, 100);
+        }, 100);
         }
 
         // 숫자를 한국어로 변환
@@ -126,6 +128,47 @@
                 const last = `${convertNumberToKorean(positions[positions.length - 1])} 번`;
                 return `${allButLast} ${last}`;
             }
+        }
+
+        // LED 점등 명령을 Backend로 전송하는 함수
+        function sendLEDCommand(positions) {
+            const leds = positions.join(','); // 예: [4] -> "4"
+            fetch(`/learning_ko/led_control`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ leds, action: 'ON' }), // LED 켜기
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        console.log(`LEDs ${leds} turned ON.`);
+                    } else {
+                        console.error('Error turning LEDs ON:', data.error);
+                    }
+                })
+                .catch(error => console.error('Error sending LED command:', error));
+
+            // 일정 시간(예: 2초) 후 LED 끄기
+            setTimeout(() => {
+                fetch(`/learning_ko/led_control`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ leds, action: 'OFF' }), // LED 끄기
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            console.log(`LEDs ${leds} turned OFF.`);
+                        } else {
+                            console.error('Error turning LEDs OFF:', data.error);
+                        }
+                    })
+                    .catch(error => console.error('Error sending LED OFF command:', error));
+            }, 2000); // 2초 후 OFF
         }
 
         // 버튼 렌더링
@@ -147,12 +190,13 @@
                 }
                 button.addEventListener('click', () => {
                     const positionsText = formatPositions(positions);
-                    playVoiceMessage(`${char}, ${positionsText}`);
+                    playVoiceMessage(`${positionsText}, ${char}`);
+                    sendLEDCommand(positions); // LED 제어 추가
                 });
                 container.appendChild(button);
             });
 
-            // Announce the character when navigating left or right
+            // 현재 문자를 음성으로 안내
             const currentCharacter = Object.keys(koreaBraille)[currentIndex];
             playVoiceMessage(currentCharacter); // Announce the current character
         }
@@ -175,7 +219,8 @@
             } else if (signal === 'Enter') {
                 const [char, { dots, positions }] = brailleEntries[currentIndex];
                 const positionsText = formatPositions(positions);
-                playVoiceMessage(`${char}, ${positionsText}`);
+                playVoiceMessage(`${positionsText}, ${char}`);
+                sendLEDCommand(positions); // Enter 시 LED 제어 추가
             } else if (signal === 'Ctrl+Backspace') {
                 window.location.href = '/learning_ko/ko'; // Redirect to the specific route
             }
@@ -202,4 +247,5 @@
         setInterval(pollBrailleSignals, 300);
     </script>
 </body>
+
 </html>

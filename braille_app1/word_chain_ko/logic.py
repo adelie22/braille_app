@@ -40,7 +40,7 @@ def check_word_validity(word, history_ko):
 
     # 단어 길이 검사
     if len(word) < 2:
-        error_message = "단어는 2글자 이상이어야 합니다."
+        error_message = "단어는 두글자 이상이어야 합니다."
         print(f"Invalid word: {error_message}")
         return False, error_message
 

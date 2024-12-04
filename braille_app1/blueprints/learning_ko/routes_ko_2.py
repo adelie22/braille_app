@@ -24,7 +24,7 @@ import time
 from threading import Timer
 
 # 싱글턴 인스턴스 가져오기 (적절한 포트로 변경)
-keyboard = HardwareBrailleKeyboard.get_instance(port='/dev/ttyUSB0')  # 실제 포트로 변경
+keyboard = HardwareBrailleKeyboard.get_instance(port='/dev/ttyACM0')  # 실제 포트로 변경
 
 #===========================LED관련==================================================
 
@@ -36,6 +36,33 @@ AUDIO_TYPES = {
     'word': 'words',
     'feedback': 'feedback',
 }
+
+@learning_bp_ko.route('/led_control', methods=['POST'])
+def led_control():
+    """
+    Handles LED control signals from the frontend.
+    Expects JSON data with 'leds' (comma-separated string of LED numbers) and 'action' ('ON' or 'OFF').
+    """
+    data = request.get_json()
+    leds = data.get('leds')  # 예: "4"
+    action = data.get('action')  # 'ON' 또는 'OFF'
+
+    if not leds or not action:
+        return jsonify({"error": "Invalid parameters"}), 400
+
+    # Parse LEDs into a list of integers
+    try:
+        led_numbers = [int(num) for num in leds.split(',')]
+        keyboard.queue_led_command(led_numbers, action=action)  # Hardware LED 제어
+        logging.info(f"LED control command received: {action} for LEDs {led_numbers}")
+        return jsonify({"status": "success", "action": action, "leds": led_numbers})
+    except ValueError:
+        logging.error(f"Invalid LED numbers provided: {leds}")
+        return jsonify({"error": "Invalid LED numbers"}), 400
+    except Exception as e:
+        logging.error(f"Error processing LED command: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
 
 def braille_number_to_dots(number):
     """

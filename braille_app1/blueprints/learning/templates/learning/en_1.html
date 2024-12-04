@@ -1,7 +1,8 @@
-<!DOCTYPE html>
+\<!DOCTYPE html>
 <html lang="ko">
+
 <head>
-    <meta charset="UTF-8">   
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>영어 알파벳 학습</title>
     <style>
@@ -48,6 +49,7 @@
         }
     </style>
 </head>
+
 <body>
     <h1>알파벳 학습!</h1>
     <div id="brailleContainer"></div>
@@ -83,17 +85,14 @@
 
         let currentIndex = 0;
 
-
-        
-
         // 음성 출력 함수
         function playVoiceMessage(message) {
-            window.speechSynthesis.cancel();
+            window.speechSynthesis.cancel(); // 기존 음성 중단
             setTimeout(() => {
-                const utterance = new SpeechSynthesisUtterance(message);
-                utterance.lang = 'ko-KR';
-                utterance.rate = 1;
-                speechSynthesis.speak(utterance);
+            const utterance = new SpeechSynthesisUtterance(message);
+            utterance.lang = 'ko-KR'; // 한국어로 설정 (필요 시 변경 가능)
+            utterance.rate = 1;
+            speechSynthesis.speak(utterance);
             }, 100);
         }
 
@@ -101,10 +100,10 @@
         function playWelcomeMessage() {
             window.speechSynthesis.cancel(); // 기존 음성 중단
             setTimeout(() => {
-                const utterance = new SpeechSynthesisUtterance("알파벳 학습 화면입니다.");
-                utterance.lang = 'ko-KR';
-                utterance.rate = 1; // 느린 속도
-                window.speechSynthesis.speak(utterance);
+            const utterance = new SpeechSynthesisUtterance("알파벳 학습 화면입니다.");
+            utterance.lang = 'ko-KR';
+            utterance.rate = 1; // 느린 속도
+            window.speechSynthesis.speak(utterance);
             }, 100);
         }
 
@@ -123,6 +122,47 @@
             }
         }
 
+        // LED 점등 명령을 Backend로 전송하는 함수
+        function sendLEDCommand(positions) {
+            const leds = positions.join(','); // 예: [1, 3] -> "1,3"
+            fetch(`/learning/led_control`, { // 엔드포인트 경로를 필요에 따라 수정하세요
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ leds, action: 'ON' }), // LED 켜기
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        console.log(`LEDs ${leds} turned ON.`);
+                    } else {
+                        console.error('Error turning LEDs ON:', data.error);
+                    }
+                })
+                .catch(error => console.error('Error sending LED command:', error));
+
+            // 일정 시간(예: 2초) 후 LED 끄기
+            setTimeout(() => {
+                fetch(`/learning/led_control`, { // 엔드포인트 경로를 필요에 따라 수정하세요
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ leds, action: 'OFF' }), // LED 끄기
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            console.log(`LEDs ${leds} turned OFF.`);
+                        } else {
+                            console.error('Error turning LEDs OFF:', data.error);
+                        }
+                    })
+                    .catch(error => console.error('Error sending LED OFF command:', error));
+            }, 2000); // 2초 후 OFF
+        }
+
         // 버튼 렌더링
         function renderBrailleButtons() {
             const container = document.getElementById('brailleContainer');
@@ -130,26 +170,26 @@
 
             const brailleEntries = Object.entries(englishBraille);
 
-            brailleEntries.forEach(([char, { dots }], index) => {
+            brailleEntries.forEach(([char, { dots, positions }], index) => {
                 const button = document.createElement('button');
                 button.className = 'braille-button';
                 button.innerHTML = `
                     <div>${dots}</div>
-                    <div>${char}</div>
+                    <div>${char.toUpperCase()}</div>
                 `;
                 if (index === currentIndex) {
                     button.classList.add('selected');
                     // Announce the current character when it's rendered
-                    playVoiceMessage(char); // Announce the character as soon as it's rendered
+                    playVoiceMessage(char.toUpperCase()); // Announce the character as soon as it's rendered
                 }
                 button.addEventListener('click', () => {
-                    const positionsText = formatPositions(englishBraille[char].positions);
-                    playVoiceMessage(`${char}, ${positionsText}`);
+                    const positionsText = formatPositions(positions);
+                    playVoiceMessage(`${char.toUpperCase()}, ${positionsText}`);
+                    sendLEDCommand(positions); // LED 제어 추가
                 });
                 container.appendChild(button);
             });
         }
-
 
         // Braille control signals: Left, Right, Enter, Ctrl+Backspace
         function handleBrailleSignal(signal) {
@@ -169,7 +209,8 @@
             } else if (signal === 'Enter') {
                 const [char, { dots, positions }] = brailleEntries[currentIndex];
                 const positionsText = formatPositions(positions);
-                playVoiceMessage(`${char}, ${positionsText}`);
+                playVoiceMessage(`${positionsText}, ${char.toUpperCase()}`);
+                sendLEDCommand(positions); // Enter 시 LED 제어 추가
             } else if (signal === 'Ctrl+Backspace') {
                 window.location.href = '/learning/en'; // Redirect to the specific route
             }
@@ -196,4 +237,5 @@
         setInterval(pollBrailleSignals, 300);
     </script>
 </body>
+
 </html>

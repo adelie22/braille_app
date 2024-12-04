@@ -38,6 +38,7 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
         self.input_buffer = []       # Buffer storing Braille inputs as binary strings
         self.control_queue = queue.Queue(maxsize=10)  # Queue for control signals
         self.command_queue = queue.Queue()  # Queue for LED commands
+        self.vibration_queue = queue.Queue()  # **New** Queue for Vibration commands
         self.buffered_mode = False   # Determines if inputs are buffered
         self.cursor_position = 0     # Current cursor position within input_buffer
         self.lock = threading.Lock()
@@ -55,6 +56,10 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
             # Start a separate thread to process LED commands
             self.command_thread = threading.Thread(target=self._process_commands, daemon=True)
             self.command_thread.start()
+            
+            # **New** Start a separate thread to process Vibration commands
+            self.vibration_thread = threading.Thread(target=self._process_vibration_commands, daemon=True)
+            self.vibration_thread.start()
 
         except serial.SerialException as e:
             logging.error(f"Failed to connect to Arduino on port {port}: {e}")
@@ -95,23 +100,6 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
                 logging.error(f"Unexpected error in serial read thread: {e}")
             time.sleep(0.1)  # Prevent tight loop
 
-#=====================LED 데이터 -> 아두이노 전송 (큐로 처리하면 이 함수 필요없음)===================          
-    # def send_led_command(self, led_numbers, action='ON'):
-    #     """
-    #     Sends LED control commands to Arduino.
-    #     led_numbers: list of LED numbers (e.g., [1, 2, 3])
-    #     action: 'ON' or 'OFF'
-    #     """
-    #     if self.serial_port and self.serial_port.is_open:
-    #         command = f"{action}:{','.join(map(str, led_numbers))}\n"
-    #         try:
-    #             self.serial_port.write(command.encode())
-    #             logging.debug(f"Sent LED command via serial: {command}")
-    #         except Exception as e:
-    #             logging.error(f"Failed to send LED command: {e}")
-    #     else:
-    #         logging.error("Serial port is not open. Cannot send LED command.")
-
     def _process_commands(self):
         """
         Continuously processes LED commands from the command queue and sends them to Arduino.
@@ -126,6 +114,20 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
                 self.command_queue.task_done()
             except Exception as e:
                 logging.error(f"Error processing LED command: {e}")
+                
+    def _process_vibration_commands(self):
+        """
+        Continuously processes vibration commands from the vibration queue and sends them to Arduino.
+        """
+        while True:
+            try:
+                command = self.vibration_queue.get()
+                if command:
+                    duration = command.get('duration', 500)  # Default to 500ms
+                    self._send_vibrate_command(duration)
+                self.vibration_queue.task_done()
+            except Exception as e:
+                logging.error(f"Error processing vibration command: {e}")
 
     def _send_led_command_internal(self, led_numbers, action='ON'):
         """
@@ -141,6 +143,35 @@ class HardwareBrailleKeyboard(metaclass=SingletonMeta):
                     logging.error(f"Failed to send LED command: {e}")
             else:
                 logging.error("Serial port is not open. Cannot send LED command.")
+                
+    def _send_vibrate_command(self, duration):
+        """
+        Sends a vibration command to the Arduino.
+        duration: Duration in milliseconds for the vibration.
+        """
+        if self.serial_port and self.serial_port.is_open:
+            command_str = f"VIBRATE:{duration}\n"
+            try:
+                with self.serial_lock:
+                    self.serial_port.write(command_str.encode())
+                logging.debug(f"Sent VIBRATE command via serial: {command_str.strip()}")
+            except Exception as e:
+                logging.error(f"Failed to send VIBRATE command: {e}")
+        else:
+            logging.error("Serial port is not open. Cannot send VIBRATE command.")
+
+    def queue_vibrate(self, duration=500):
+        """
+        Enqueue a vibration command.
+        duration: Duration in milliseconds for the vibration.
+        """
+        try:
+            self.vibration_queue.put({
+                'duration': duration
+            }, block=True)  # block=True ensures the command is enqueued
+            logging.debug(f"Queued VIBRATE command: duration={duration}ms")
+        except queue.Full:
+            logging.warning(f"Vibration queue is full. Discarding VIBRATE command: duration={duration}ms")
 
     def queue_led_command(self, led_numbers, action='ON'):
         """
