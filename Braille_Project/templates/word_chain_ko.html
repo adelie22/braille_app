@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>한국어 끝말잇기</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        /* Translated Word Display */
+        #translated-word-ko {
+            margin-top: 20px;
+            font-size: 1.5em;
+            color: #444;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 60%;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: left;
+            background-color: #fff;
+            min-height: 2em;
+            /* Ensures the div has height even when empty */
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            position: relative;
+        }
+
+        /* Style for the highlighted box around the text */
+        .cursor-highlight {
+            display: inline;
+            /* Changed from inline-block to inline */
+            background-color: #e5e75f;
+            /* Light yellow background */
+            border: 2px solid #dde74d;
+            /* Border to make it stand out */
+            border-radius: 4px;
+            padding: 2px 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #000000;
+            color: white;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #333333;
+        }
+
+        .selected {
+            background-color: rgb(255, 255, 178) !important;
+            /* Light yellow */
+            color: black !important;
+        }
+
+        #result-ko {
+            margin-top: 20px;
+            font-size: 18px;
+            color: green;
+        }
+
+        #history-ko {
+            margin-top: 20px;
+            list-style-type: none;
+            padding: 0;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            text-align: left;
+        }
+
+        #history-ko li {
+            padding: 5px 0;
+            font-size: 16px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        #history-ko li:nth-child(even) {
+            background-color: #e9ecef;
+        }
+
+        /* Additional Elements */
+        #attempts-ko,
+        #exchange-ko {
+            margin-top: 10px;
+            font-size: 23px;
+            color: #555;
+        }
+
+        #exchange-ko {
+            font-weight: bold;
+        }
+
+        /* Status Message Styles */
+        #status-message-ko {
+            margin-top: 20px;
+            font-size: 1.2em;
+            color: red;
+        }
+
+    </style>
+</head>
+
+<body>
+    <h1>한국어 끝말잇기</h1>
+
+    <!-- Live Translated Word Display -->
+    <div class="input-display">
+        <strong>번역된 단어:</strong>
+        <div id="translated-word-ko" class="braille-characters" aria-label="번역된 단어 표시" tabindex="0"></div>
+    </div>
+
+    <p id="result-ko" aria-live="polite"></p>
+    <ul id="history-ko"></ul>
+
+    <!-- Additional Elements: Incorrect Attempts, Total Exchanges, Exchange Content -->
+    <p id="attempts-ko">틀린 시도: 0 | 총 교환 횟수: 0</p>
+    <p id="exchange-ko" style="font-size: 2rem; transition: transform 0.3s ease-out, opacity 0.3s ease-out;"></p>
+
+    <!-- Status Message Display -->
+    <div id="status-message-ko" aria-live="polite"></div>
+
+    <!-- JavaScript file -->
+    <script src="{{ url_for('static', filename='js/word_chain_ko.js') }}"></script>
+</body>
+
+</html>

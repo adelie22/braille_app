@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>끝말잇기</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 100px;
+            background-color: #ffffff;
+        }
+
+        h1 {
+            color: #000000;
+            font-size: 80px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #language-selection {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        button {
+            width: 220px;
+            height: 90px;
+            padding: 10px 20px;
+            font-size: 40px;
+            font-weight: 800;
+            margin: 10px;
+            cursor: pointer;
+            border: 2px solid black;
+            border-radius: 10px;
+            background-color: #ffffff;
+            color: rgb(0, 0, 0);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+            outline: none;
+        }
+
+        .menu-button:hover,
+        .back-button:hover {
+            background-color: rgb(0, 0, 0);
+            color: rgb(255, 255, 255);
+        }
+
+        .selected {
+            background-color: rgb(0, 0, 0) !important;
+            color: rgb(255, 255, 255) !important;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>→ 끝말잇기 언어 선택</h1>
+        <button id="korean-btn" class="menu-button" tabindex="0">한국어</button>
+        <button id="english-btn" class="menu-button" tabindex="1">영어</button>
+    </header>
+
+    <script>
+        const menuButtons = document.querySelectorAll('.menu-button');
+        let currentIndex = 0;
+
+        // 음성 출력 함수
+        function speakMessage(message) {
+            window.speechSynthesis.cancel();
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(message);
+                utterance.lang = 'ko-KR';
+                window.speechSynthesis.speak(utterance);
+            }, 100);
+        }
+        
+        // 페이지 초기화 시 음성 안내
+        function playWelcomeMessage() {
+            window.speechSynthesis.cancel(); // 기존 음성 중단
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance("끝말잇기 언어 선택 화면입니다.");
+                utterance.lang = 'ko-KR';
+                utterance.rate = 1; // 느린 속도
+                window.speechSynthesis.speak(utterance);
+            }, 100);
+        }
+
+        // 초기화 함수
+        function initializeMenu() {
+            menuButtons[currentIndex].classList.add('selected');
+            speakMessage(getButtonText(menuButtons[currentIndex]));
+        }
+
+        // 버튼 텍스트 가져오기
+        function getButtonText(button) {
+            return button.textContent.trim();
+        }
+
+        // 메뉴 선택 함수
+        function activateMenu() {
+            const selectedButton = menuButtons[currentIndex];
+            selectedButton.click();
+        }
+
+        // Braille control signals: Left, Right, Enter, Ctrl+Backspace
+        function handleBrailleSignal(signal) {
+            if (signal === 'Left') {
+                moveLeft();
+            } else if (signal === 'Right') {
+                moveRight();
+            } else if (signal === 'Enter') {
+                activateMenu();
+            } else if (signal === 'Ctrl+Backspace') {
+                window.location.href = '/'; // Go back to the previous page
+            }
+        }
+
+        // 메뉴 이동: 왼쪽
+        function moveLeft() {
+            menuButtons[currentIndex].classList.remove('selected');
+            currentIndex = (currentIndex - 1 + menuButtons.length) % menuButtons.length;
+            menuButtons[currentIndex].classList.add('selected');
+            speakMessage(getButtonText(menuButtons[currentIndex]));
+        }
+
+        // 메뉴 이동: 오른쪽
+        function moveRight() {
+            menuButtons[currentIndex].classList.remove('selected');
+            currentIndex = (currentIndex + 1) % menuButtons.length;
+            menuButtons[currentIndex].classList.add('selected');
+            speakMessage(getButtonText(menuButtons[currentIndex]));
+        }
+
+        // Poll Braille control signals from the backend
+        function pollBrailleSignals() {
+            fetch('/index/get_braille_signals')  // Backend endpoint to get signals
+                .then(response => response.json())
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    controlSignals.forEach(signal => handleBrailleSignal(signal));
+                })
+                .catch(error => console.error('Error fetching Braille signals:', error));
+        }
+
+        // 버튼 클릭 이벤트
+        menuButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const buttonId = button.id;
+                if (buttonId === 'korean-btn') {
+                    window.location.href = "/word_chain_ko";
+                } else if (buttonId === 'english-btn') {
+                    window.location.href = "/word_chain_en";
+                }
+            });
+        });
+
+        // 초기화
+        document.addEventListener('DOMContentLoaded', () => {
+            playWelcomeMessage(); // 페이지 로드 시 음성 안내 실행
+            initializeMenu();
+        });
+
+        // Poll Braille signals every 500ms
+        setInterval(pollBrailleSignals, 500);  // Every 500ms
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>키보드 매뉴얼</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f0f0f0;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 50px;
+            margin-bottom: 40px;
+        }
+
+        .instruction {
+            font-size: 24px;
+            color: #555;
+            margin: 20px 0;
+        }
+
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px; /* Space between rows */
+            margin-top: 30px;
+        }
+
+        .button-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px; /* Space between buttons */
+        }
+
+        .button {
+            padding: 15px 30px;
+            font-size: 20px;
+            cursor: default;
+            border: none;
+            border-radius: 5px;
+            background-color: #ff8239;
+            color: white;
+            transition: background-color 0.3s ease, transform 0.2s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+            position: relative;
+        }
+
+        #up-btn {
+            margin-left: 380px;
+        }
+
+        .button:hover {
+            background-color: #ff8329;
+        }
+
+        .button.active {
+            background-color: #28a745 !important;
+            transform: scale(1.05);
+        }
+
+        .label {
+            display: block;
+            margin-top: 10px;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        /* Optional: Error message styling */
+        #error-message {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>키보드 매뉴얼</h1>
+        <div class="instruction">점자 키보드의 버튼을 눌러 그 기능을 들을 수 있습니다.</div>
+        <div class="button-container">
+            <!-- First Row: Button 3, Button 2, Button 1, Button 4, Button 5, Button 6, Backspace -->
+            <div class="button-row">
+                <button class="button" id="button3-btn">3점</button>
+                <button class="button" id="button2-btn">2점</button>
+                <button class="button" id="button1-btn">1점</button>
+                <button class="button" id="button4-btn">4점</button>
+                <button class="button" id="button5-btn">5점</button>
+                <button class="button" id="button6-btn">6점</button>
+                <button class="button" id="backspace-btn">백스페이스</button>
+            </div>
+
+            <!-- Second Row: Up Button -->
+            <div class="button-row">
+                <button class="button" id="up-btn">위</button>
+            </div>
+
+            <!-- Third Row: Control, Space, Enter, Left, Down, Right -->
+            <div class="button-row">
+                <button class="button" id="control-btn">컨트롤</button>
+                <button class="button" id="space-btn">스페이스</button>
+                <button class="button" id="enter-btn">엔터</button>
+                <button class="button" id="left-btn">왼쪽</button>
+                <button class="button" id="down-btn">아래</button>
+                <button class="button" id="right-btn">오른쪽</button>
+            </div>
+        </div>
+    </header>
+
+        <!-- Optional: Error message container -->
+        <div id="error-message"></div>
+
+        <script>
+            // Mapping of signals to spoken messages
+            const signalToMessage = {
+                // Control Signals
+                'Ctrl': '컨트롤',
+                'Left': '왼쪽',
+                'Right': '오른쪽',
+                'Up': '위',
+                'Down': '아래',
+                'Enter': '엔터',
+                'Back': '백스페이스', // Ensure this matches the backend signal
+                'Space': '스페이스',
+    
+                // Braille Signals
+                '000001': '일점',
+                '000010': '이점',
+                '000100': '삼점',
+                '001000': '사점',
+                '010000': '오점',
+                '100000': '육점'
+            };
+    
+            // Function to speak a given message
+            function speakMessage(message) {
+                window.speechSynthesis.cancel(); // Stop any ongoing speech
+                setTimeout(() => {
+                    const utterance = new SpeechSynthesisUtterance(message);
+                    // Set language to Korean
+                    utterance.lang = 'ko-KR'; // Change to Korean language
+                    utterance.rate = 1;
+                    window.speechSynthesis.speak(utterance);
+                }, 100); // Slight delay to ensure previous speech is canceled
+            }
+    
+            // Function to handle received signals
+            function handleSignal(signal) {
+                if (signal === 'Ctrl+Backspace') {
+                    window.location.href = '/manual'; // Navigate to /manual
+                    return; // Exit function as we don't need to process further
+                }
+                
+                const message = signalToMessage[signal];
+                if (message) {
+                    speakMessage(message);
+                    highlightButton(message);
+                } else {
+                    console.warn(`알 수 없는 신호: ${signal}`);
+                    displayError(`알 수 없는 신호: ${signal}`);
+                }
+            }
+    
+            // Function to highlight the corresponding button
+            function highlightButton(message) {
+                // Map message to button IDs
+                const messageToButtonId = {
+                    '컨트롤': 'control-btn',
+                    '왼쪽': 'left-btn',
+                    '오른쪽': 'right-btn',
+                    '위': 'up-btn',
+                    '아래': 'down-btn',
+                    '엔터': 'enter-btn',
+                    '백스페이스': 'backspace-btn',
+                    '스페이스': 'space-btn',
+                    '일점': 'button1-btn',
+                    '이점': 'button2-btn',
+                    '삼점': 'button3-btn',
+                    '사점': 'button4-btn',
+                    '오점': 'button5-btn',
+                    '육점': 'button6-btn'
+                };
+    
+                const buttonId = messageToButtonId[message];
+                if (buttonId) {
+                    const button = document.getElementById(buttonId);
+                    if (button) {
+                        button.classList.add('active');
+                        setTimeout(() => {
+                            button.classList.remove('active');
+                        }, 500); // Highlight duration
+                    }
+                }
+            }
+    
+            // Function to display error messages
+            function displayError(message) {
+                const errorDiv = document.getElementById('error-message');
+                if (errorDiv) {
+                    errorDiv.textContent = message;
+                    errorDiv.style.display = 'block';
+                    setTimeout(() => {
+                        errorDiv.style.display = 'none';
+                    }, 3000); // Display for 3 seconds
+                }
+            }
+    
+            // Function to poll Braille signals from the server
+            function pollBrailleSignals() {
+                fetch('/manual/keyboard/get_braille_signals')
+                    .then(response => response.json())
+                    .then(data => {
+                        const controlSignals = data.control_signals;
+                        const brailleSignals = data.braille_signals;
+    
+                        // Handle Control Signals
+                        controlSignals.forEach(signal => {
+                            handleSignal(signal);
+                        });
+    
+                        // Handle Braille Signals
+                        brailleSignals.forEach(signal => {
+                            handleSignal(signal);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('점자 신호를 가져오는 중 오류 발생:', error);
+                        displayError('점자 신호를 가져오는 중 오류가 발생했습니다.');
+                    });
+            }
+    
+            // Initial setup
+            document.addEventListener('DOMContentLoaded', () => {
+                // Optionally, you can have an initial welcome message
+                speakMessage("키보드 매뉴얼 화면. 점자 키보드의 버튼을 눌러 그 기능을 들을 수 있습니다.");
+                setInterval(pollBrailleSignals, 500); // Poll every 500ms
+            });
+        </script>
+    </body>
+    
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>홈 화면</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 100px;
+            background-color: #ffffff;
+        }
+
+        h1 {
+            color: #000;
+            font-size: 80px;   
+        }
+
+        h2 {
+            color: #000;
+            font-size: 40px;
+            margin-top: -5%;
+            font-weight: 500;
+        }
+
+        p {
+            font-size: 30px;          
+            color: #000;               
+            line-height: 1;         
+            margin: 30px 0;          
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* Container for buttons */
+        #language-selection {
+            display: flex;
+            justify-content: center;  /* Align buttons horizontally */
+            gap: 20px;                /* Space between buttons */
+            flex-wrap: wrap;          /* Wrap buttons if screen is small */
+        }
+
+        button {
+            width: 220px;
+            height: 90px;
+            padding: 10px 20px;
+            font-size: 40px;
+            font-weight: 800;
+            cursor: pointer;
+            border: 2px solid black;
+            border-radius: 10px;
+            background-color: #ffffff;
+            color: rgb(0, 0, 0);
+            transition: background-color 0.3s ease, color 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.4);
+            outline: none;
+        }
+
+        .menu-button:hover,
+        .back-button:hover {
+            background-color: rgb(0, 0, 0);
+            color: rgb(255, 255, 255);
+        }
+
+        .selected {
+            background-color: rgb(0, 0, 0) !important;
+            color: rgb(255, 255, 255) !important;
+        }
+
+        .menu-button.selected {
+            background-color: #007bff;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>배울점</h1>
+        <h2>(점자 쓰기 학습 웹)</h2>
+        <div id="language-selection">
+            <button id="learning-btn" class="menu-button" tabindex="0">학습</button>
+            <button id="game-btn" class="menu-button" tabindex="1">끝말잇기</button>
+            <button id="diary-btn" class="menu-button" tabindex="2">다이어리</button>
+            <button id="manual-btn" class="menu-button" tabindex="3">매뉴얼</button>
+        </div>
+    </header>
+
+    <main>
+        <div class="horizontal-line"></div>
+        <p>안녕하세요. No Name Required 입니다!</p>  
+        <p>&lt;배울점&gt;을 통해 점자 쓰기를 재미있게 학습하시길 바랍니다. ☺️</p>
+    </main>
+
+    <script>
+        // Initialize variables
+        let currentIndex = 0;
+        const menuButtons = document.querySelectorAll('.menu-button');
+        const totalMenus = menuButtons.length;
+
+        // Function to select a menu button
+        function selectMenu(index) {
+            // Remove 'selected' class from all buttons
+            menuButtons.forEach(btn => btn.classList.remove('selected'));
+            // Add 'selected' class to the current button
+            menuButtons[index].classList.add('selected');
+            // Optionally, set focus for accessibility
+            menuButtons[index].focus();
+            // Speak the selected button's text
+            speakMessage(getButtonText(menuButtons[index]));
+        }
+
+        // Function to get button text
+        function getButtonText(button) {
+            return button.textContent.trim();
+        }
+
+        // Function to speak messages using Speech Synthesis
+        function speakMessage(message) {
+            window.speechSynthesis.cancel(); // Stop any ongoing speech
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(message);
+                utterance.lang = 'ko-KR';
+                utterance.rate = 1; // 속도 설정
+                window.speechSynthesis.speak(utterance);
+            }, 100);
+        }
+
+        // Function to activate the selected menu
+        function activateMenu() {
+            const selectedButton = menuButtons[currentIndex];
+            selectedButton.click();
+        }
+
+        // Function to handle control signals
+        function handleControlSignal(signal) {
+            switch(signal) {
+                case 'Left':
+                    moveLeft();
+                    break;
+                case 'Right':
+                    moveRight();
+                    break;
+                case 'Enter':
+                    activateMenu();
+                    break;
+                default:
+                    console.warn(`Unhandled signal: ${signal}`);
+            }
+        }
+
+        // Move selection to the left (previous menu)
+        function moveLeft() {
+            currentIndex = (currentIndex - 1 + totalMenus) % totalMenus;
+            selectMenu(currentIndex);
+        }
+
+        // Move selection to the right (next menu)
+        function moveRight() {
+            currentIndex = (currentIndex + 1) % totalMenus;
+            selectMenu(currentIndex);
+        }
+
+        // Polling function to fetch Braille control signals
+        function pollBrailleSignals() {
+            fetch('/index/get_braille_signals')  // Specific endpoint for index.html
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    
+                    // Handle Control Signals
+                    controlSignals.forEach(signal => {
+                        handleControlSignal(signal);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error polling Braille signals:', error);
+                });
+        }
+
+        function playIntroMessage() {
+            window.speechSynthesis.cancel();
+            setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance("안녕하세요. 배울점에 오신것을 환영합니다.");
+                utterance.lang = 'ko-KR';
+                utterance.rate = 1;
+                window.speechSynthesis.speak(utterance);
+            }, 100);
+        }
+
+        // Wait for DOM content to load and then execute initialization
+        document.addEventListener('DOMContentLoaded', function () {
+            playIntroMessage();  // Call the speech function directly on page load
+            selectMenu(currentIndex); // Initial selection and welcome message
+            // Poll Braille signals every 500ms
+            setInterval(pollBrailleSignals, 500);
+
+            // Button click event handling
+            menuButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    const buttonId = button.id;
+                    if (buttonId === 'learning-btn') {
+                        window.location.href = "/home";
+                    } else if (buttonId === 'game-btn') {
+                        window.location.href = "/word_chain_menu";
+                    } else if (buttonId === 'diary-btn') {
+                        window.location.href = "/diary";
+                    } else if (buttonId === 'manual-btn') {
+                        window.location.href = "/manual";
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

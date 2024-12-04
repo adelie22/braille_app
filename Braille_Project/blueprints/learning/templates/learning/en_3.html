@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>English Vocabulary</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #ffffff;
+        }
+
+        h1 {
+            color: #000;
+            font-size: 80px;
+        }
+
+        #selection {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        button {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: auto;
+            height: auto;
+            border: 2px solid #000;
+            border-radius: 10px;
+            background-color: #fff;
+            font-size: 70px;
+            font-weight: 800;
+            color: #000;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+            outline: none;
+            padding: 1%;
+        }
+
+        .selected {
+            background-color: #ecde61;
+            color: #fff;
+            transform: scale(1.1);
+            box-shadow: 0 0 10px rgba(211, 201, 63, 0.89);
+        }
+
+        .dots {
+            font-size: 40px;
+            margin-bottom: 10px;
+            color: #555;
+        }
+
+        .word {
+            font-size: 70px;
+            font-weight: 800;
+            color: #000;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>내 영어 단어장!</h1>
+    <div id="selection">
+        {% if vocabulary %}
+        {% for item in vocabulary %}
+        <button>
+            <span class="dots"></span>
+            <span class="word">{{ item.word }}</span>
+        </button>
+        {% endfor %}
+        {% else %}
+        <p>No vocabulary data available.</p>
+        {% endif %}
+    </div>
+
+
+    <!-- Optional Debugging Element -->
+    <!-- <p id="braille-audio-output" style="display:none;"></p> -->
+
+    <script>
+        const englishBraille = {
+            'a': { dots: '⠁', positions: [1] },
+            'b': { dots: '⠃', positions: [1, 2] },
+            'c': { dots: '⠉', positions: [1, 4] },
+            'd': { dots: '⠙', positions: [1, 4, 5] },
+            'e': { dots: '⠑', positions: [1, 5] },
+            'f': { dots: '⠋', positions: [1, 2, 4] },
+            'g': { dots: '⠛', positions: [1, 2, 4, 5] },
+            'h': { dots: '⠓', positions: [1, 2, 5] },
+            'i': { dots: '⠊', positions: [2, 4] },
+            'j': { dots: '⠚', positions: [2, 4, 5] },
+            'k': { dots: '⠅', positions: [1, 3] },
+            'l': { dots: '⠇', positions: [1, 2, 3] },
+            'm': { dots: '⠍', positions: [1, 3, 4] },
+            'n': { dots: '⠝', positions: [1, 3, 4, 5] },
+            'o': { dots: '⠕', positions: [1, 3, 5] },
+            'p': { dots: '⠏', positions: [1, 2, 3, 4] },
+            'q': { dots: '⠟', positions: [1, 2, 3, 4, 5] },
+            'r': { dots: '⠗', positions: [1, 2, 3, 5] },
+            's': { dots: '⠎', positions: [2, 3, 4] },
+            't': { dots: '⠞', positions: [2, 3, 4, 5] },
+            'u': { dots: '⠥', positions: [1, 3, 6] },
+            'v': { dots: '⠧', positions: [1, 2, 3, 6] },
+            'w': { dots: '⠺', positions: [2, 4, 5] },
+            'x': { dots: '⠭', positions: [1, 3, 4, 6] },
+            'y': { dots: '⠽', positions: [1, 3, 4, 5, 6] },
+            'z': { dots: '⠵', positions: [1, 3, 5, 6] }
+        };
+
+        let currentIndex = 0;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const buttons = document.querySelectorAll("#selection button");
+
+            // Function to set up the initial button state
+            function setupButtons() {
+                buttons.forEach((button, index) => {
+                    button.classList.remove("selected");
+                    if (index === currentIndex) {
+                        button.classList.add("selected");
+                    }
+                });
+                if (buttons[currentIndex]) {
+                    buttons[currentIndex].focus();
+                }
+            }
+
+            // **수정된 formatBrailleMessage 함수**
+            function formatBrailleMessage(word) {
+                let brailleMessage = [];
+                for (let char of word.toLowerCase()) {
+                    if (englishBraille[char]) {
+                        const positions = englishBraille[char].positions.join(", ");
+                        brailleMessage.push(`${positions} for ${char}`); // "1,3 for a", "1 for b" 형식
+                    }
+                }
+                return brailleMessage.join(", "); // "1,3 for a, 1 for b" 형식
+            }
+
+            // Function to handle Braille signals
+            async function handleBrailleSignal(signal) {
+                const totalButtons = buttons.length;
+
+                switch (signal) {
+                    case "Left":
+                        if (currentIndex > 0) {
+                            currentIndex--;
+                            setupButtons();
+                            const currentWord = buttons[currentIndex].querySelector('.word').textContent.trim();
+                            playVoiceMessage(currentWord, 'en-US', 0.9);
+                        }
+                        break;
+                    case "Right":
+                        if (currentIndex < totalButtons - 1) {
+                            currentIndex++;
+                            setupButtons();
+                            const currentWordRight = buttons[currentIndex].querySelector('.word').textContent.trim();
+                            playVoiceMessage(currentWordRight, 'en-US', 0.9);
+                        }
+                        break;
+                    case "Enter":
+                        if (buttons[currentIndex]) {
+                            const word = buttons[currentIndex].querySelector(".word").textContent.trim();
+                            const brailleMessage = formatBrailleMessage(word);
+                            playVoiceMessage(brailleMessage, 'en-US', 1); // 언어를 'en-US'로 설정
+                            await sendLEDCommandForWord(word); // LED 제어 함수 호출
+                        }
+                        break;
+                    case "Ctrl+Backspace":
+                        window.location.href = "/learning/en";
+                        break;
+                    default:
+                        console.warn("Unhandled Braille signal:", signal);
+                }
+            }
+
+            // Function to play voice messages using Speech Synthesis
+            function playVoiceMessage(message, lang = 'ko-KR', rate = 1, callback = null) {
+                if (!('speechSynthesis' in window)) {
+                    console.error("Speech Synthesis not supported in this browser.");
+                    return;
+                }
+                window.speechSynthesis.cancel(); // 기존 음성 중단
+                setTimeout(() => {
+                const utterance = new SpeechSynthesisUtterance(message);
+                utterance.lang = lang;
+                utterance.rate = rate;
+                if (callback) {
+                    utterance.onend = callback; // Execute after speech ends
+                }
+                speechSynthesis.speak(utterance);
+                }, 100);
+            }
+
+            // LED 제어 명령을 Backend로 전송하는 함수
+            async function sendLEDCommand(positions) {
+                const leds = positions.join(','); // 예: [1, 4] -> "1,4"
+                console.log(`sendLEDCommand called with leds: ${leds}`);
+                try {
+                    const onResponse = await fetch(`/learning/led_control`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ leds, action: 'ON' }),
+                    });
+                    const onData = await onResponse.json();
+                    if (onData.status === 'success') {
+                        console.log(`LEDs ${leds} turned ON.`);
+                    } else {
+                        console.error('Error turning LEDs ON:', onData.error);
+                        playVoiceMessage("LED를 켜는 데 실패했습니다.", 'ko-KR', 1.0);
+                    }
+                } catch (error) {
+                    console.error('Error sending LED ON command:', error);
+                    playVoiceMessage("LED를 켜는 중 오류가 발생했습니다.", 'ko-KR', 1.0);
+                }
+
+                // 일정 시간(예: 1초) 후 LED 끄기
+                await new Promise(resolve => setTimeout(resolve, 2000)); // 1초 대기
+
+                try {
+                    const offResponse = await fetch(`/learning/led_control`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ leds, action: 'OFF' }),
+                    });
+                    const offData = await offResponse.json();
+                    if (offData.status === 'success') {
+                        console.log(`LEDs ${leds} turned OFF.`);
+                    } else {
+                        console.error('Error turning LEDs OFF:', offData.error);
+                        playVoiceMessage("LED를 끄는 데 실패했습니다.", 'ko-KR', 1.0);
+                    }
+                } catch (error) {
+                    console.error('Error sending LED OFF command:', error);
+                    playVoiceMessage("LED를 끄는 중 오류가 발생했습니다.", 'ko-KR', 1.0);
+                }
+            }
+
+            // 단어에 해당하는 모든 글자의 positions을 개별적으로 수집하여 LED 제어하는 함수
+            async function sendLEDCommandForWord(word) {
+                console.log(`sendLEDCommandForWord called with word: ${word}`);
+                for (let char of word.toLowerCase()) {
+                    if (englishBraille[char]) {
+                        const positions = englishBraille[char].positions;
+                        console.log(`Processing LED positions for '${char}': ${positions}`);
+                        await sendLEDCommand(positions);
+                    }
+                }
+            }
+
+            // Braille 신호 폴링 함수
+            function pollBrailleSignals() {
+                fetch('/index/get_braille_signals')  // Backend endpoint to get signals
+                    .then(response => response.json())
+                    .then(data => {
+                        const controlSignals = data.control_signals;
+                        controlSignals.forEach(signal => handleBrailleSignal(signal));
+                    })
+                    .catch(error => console.error('Error fetching Braille signals:', error));
+            }
+
+            // Braille 신호 폴링 초기화 (500ms 간격)
+            setInterval(pollBrailleSignals, 500);
+
+            // 각 단어에 대한 점자 표시 업데이트
+            buttons.forEach(button => {
+                const word = button.querySelector(".word").textContent.trim();
+                const dotsContainer = button.querySelector(".dots");
+
+                let brailleDots = "";
+                for (const char of word.toLowerCase()) {
+                    if (englishBraille[char]) {
+                        brailleDots += englishBraille[char].dots + " ";
+                    }
+                }
+
+                dotsContainer.textContent = brailleDots.trim();
+            });
+
+            // 환영 메시지 및 초기 단어 읽기
+            playVoiceMessage("내 영어 단어장 화면입니다.", 'ko-KR', 1, async () => {
+                if (buttons.length > 0) {
+                    const firstWord = buttons[0].querySelector('.word').textContent.trim();
+                    //const brailleMessage = formatBrailleMessage(firstWord); // 수정된 형식 사용
+                    playVoiceMessage(firstWord, 'en-US', 1);  // 첫 번째 단어의 점자 메시지 읽기
+                    //await sendLEDCommandForWord(firstWord); // 초기 단어 LED 점등
+                }
+            });
+            setupButtons();
+
+            // 버튼 클릭 이벤트 리스너 추가
+            function addButtonEventListeners() {
+                const buttons = document.querySelectorAll("#selection button");
+
+                buttons.forEach((button) => {
+                    // 이미 이벤트 리스너가 추가된 버튼은 건너뜀
+                    if (!button.dataset.listenerAdded) {
+                        button.addEventListener("click", async () => {
+                            const word = button.querySelector(".word").textContent.trim();
+                            const braille = button.querySelector(".dots").textContent.trim();
+                            let positions = [];
+                            for (let char of word.toLowerCase()) {
+                                if (englishBraille[char]) {
+                                    positions.push(...englishBraille[char].positions);
+                                }
+                            }
+
+                            console.log(`Button Clicked: Word="${word}", Braille="${braille}", Positions=${JSON.stringify(positions)}`);
+
+                            // 음성 출력: 단어의 점자 메시지
+                            const brailleMessage = formatBrailleMessage(word); // 수정된 형식 사용
+                            playVoiceMessage(brailleMessage, 'en-US', 1.0);
+                            await sendLEDCommandForWord(word); // LED 제어 함수 호출
+                        });
+
+                        // 데이터셋에 리스너 추가 표시
+                        button.dataset.listenerAdded = "true";
+                    }
+                });
+            }
+
+            addButtonEventListeners();
+
+            // Ctrl + Backspace -> 이전 페이지로 이동
+            document.addEventListener("keydown", function (event) {
+                if (event.ctrlKey && event.key === "Backspace") {
+                    window.history.back();
+                }
+            });
+
+            // 숫자를 한글로 변환하는 함수 (영어 단어장에서는 필요 없을 수 있음)
+            function convertNumberToKorean(num) {
+                const koreanNumbers = ['일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+                return koreanNumbers[num - 1] || num;
+            }
+        });
+    </script>
+
+</body>
+
+</html>

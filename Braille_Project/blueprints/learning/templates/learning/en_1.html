@@ -1,0 +1,241 @@
+\<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>영어 알파벳 학습</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #ffffff;
+        }
+
+        h1 {
+            color: #000;
+            font-size: 80px;
+        }
+
+        #brailleContainer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .braille-button {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 200px;
+            height: 250px;
+            border: 2px solid #000;
+            border-radius: 10px;
+            background-color: #fff;
+            font-size: 70px;
+            font-weight: 800;
+            color: #000;
+            cursor: pointer;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .braille-button.selected {
+            background-color: #000;
+            color: #fff;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>알파벳 학습!</h1>
+    <div id="brailleContainer"></div>
+    <script>
+        const englishBraille = {
+            'a': { dots: '⠁', positions: [1] },
+            'b': { dots: '⠃', positions: [1, 2] },
+            'c': { dots: '⠉', positions: [1, 4] },
+            'd': { dots: '⠙', positions: [1, 4, 5] },
+            'e': { dots: '⠑', positions: [1, 5] },
+            'f': { dots: '⠋', positions: [1, 2, 4] },
+            'g': { dots: '⠛', positions: [1, 2, 4, 5] },
+            'h': { dots: '⠓', positions: [1, 2, 5] },
+            'i': { dots: '⠊', positions: [2, 4] },
+            'j': { dots: '⠚', positions: [2, 4, 5] },
+            'k': { dots: '⠅', positions: [1, 3] },
+            'l': { dots: '⠇', positions: [1, 2, 3] },
+            'm': { dots: '⠍', positions: [1, 3, 4] },
+            'n': { dots: '⠝', positions: [1, 3, 4, 5] },
+            'o': { dots: '⠕', positions: [1, 3, 5] },
+            'p': { dots: '⠏', positions: [1, 2, 3, 4] },
+            'q': { dots: '⠟', positions: [1, 2, 3, 4, 5] },
+            'r': { dots: '⠗', positions: [1, 2, 3, 5] },
+            's': { dots: '⠎', positions: [2, 3, 4] },
+            't': { dots: '⠞', positions: [2, 3, 4, 5] },
+            'u': { dots: '⠥', positions: [1, 3, 6] },
+            'v': { dots: '⠧', positions: [1, 2, 3, 6] },
+            'w': { dots: '⠺', positions: [2, 4, 5] },
+            'x': { dots: '⠭', positions: [1, 3, 4, 6] },
+            'y': { dots: '⠽', positions: [1, 3, 4, 5, 6] },
+            'z': { dots: '⠵', positions: [1, 3, 5, 6] }
+        };
+
+        let currentIndex = 0;
+
+        // 음성 출력 함수
+        function playVoiceMessage(message) {
+            window.speechSynthesis.cancel(); // 기존 음성 중단
+            setTimeout(() => {
+            const utterance = new SpeechSynthesisUtterance(message);
+            utterance.lang = 'ko-KR'; // 한국어로 설정 (필요 시 변경 가능)
+            utterance.rate = 1;
+            speechSynthesis.speak(utterance);
+            }, 100);
+        }
+
+        // 페이지 초기화 시 음성 안내
+        function playWelcomeMessage() {
+            window.speechSynthesis.cancel(); // 기존 음성 중단
+            setTimeout(() => {
+            const utterance = new SpeechSynthesisUtterance("알파벳 학습 화면입니다.");
+            utterance.lang = 'ko-KR';
+            utterance.rate = 1; // 느린 속도
+            window.speechSynthesis.speak(utterance);
+            }, 100);
+        }
+
+        function convertNumberToKorean(num) {
+            const koreanNumbers = ['일', '이', '삼', '사', '오', '육', '칠', '팔', '구'];
+            return koreanNumbers[num - 1] || num;
+        }
+
+        function formatPositions(positions) {
+            if (positions.length === 1) {
+                return `${convertNumberToKorean(positions[0])} 번`;
+            } else {
+                const allButLast = positions.slice(0, -1).map(convertNumberToKorean).join(' ');
+                const last = `${convertNumberToKorean(positions[positions.length - 1])} 번`;
+                return `${allButLast} ${last}`;
+            }
+        }
+
+        // LED 점등 명령을 Backend로 전송하는 함수
+        function sendLEDCommand(positions) {
+            const leds = positions.join(','); // 예: [1, 3] -> "1,3"
+            fetch(`/learning/led_control`, { // 엔드포인트 경로를 필요에 따라 수정하세요
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ leds, action: 'ON' }), // LED 켜기
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        console.log(`LEDs ${leds} turned ON.`);
+                    } else {
+                        console.error('Error turning LEDs ON:', data.error);
+                    }
+                })
+                .catch(error => console.error('Error sending LED command:', error));
+
+            // 일정 시간(예: 2초) 후 LED 끄기
+            setTimeout(() => {
+                fetch(`/learning/led_control`, { // 엔드포인트 경로를 필요에 따라 수정하세요
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ leds, action: 'OFF' }), // LED 끄기
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            console.log(`LEDs ${leds} turned OFF.`);
+                        } else {
+                            console.error('Error turning LEDs OFF:', data.error);
+                        }
+                    })
+                    .catch(error => console.error('Error sending LED OFF command:', error));
+            }, 2000); // 2초 후 OFF
+        }
+
+        // 버튼 렌더링
+        function renderBrailleButtons() {
+            const container = document.getElementById('brailleContainer');
+            container.innerHTML = ''; // Clear the container first
+
+            const brailleEntries = Object.entries(englishBraille);
+
+            brailleEntries.forEach(([char, { dots, positions }], index) => {
+                const button = document.createElement('button');
+                button.className = 'braille-button';
+                button.innerHTML = `
+                    <div>${dots}</div>
+                    <div>${char.toUpperCase()}</div>
+                `;
+                if (index === currentIndex) {
+                    button.classList.add('selected');
+                    // Announce the current character when it's rendered
+                    playVoiceMessage(char.toUpperCase()); // Announce the character as soon as it's rendered
+                }
+                button.addEventListener('click', () => {
+                    const positionsText = formatPositions(positions);
+                    playVoiceMessage(`${char.toUpperCase()}, ${positionsText}`);
+                    sendLEDCommand(positions); // LED 제어 추가
+                });
+                container.appendChild(button);
+            });
+        }
+
+        // Braille control signals: Left, Right, Enter, Ctrl+Backspace
+        function handleBrailleSignal(signal) {
+            const brailleEntries = Object.entries(englishBraille);
+            const totalCards = brailleEntries.length;
+
+            if (signal === 'Left') {
+                if (currentIndex > 0) {
+                    currentIndex--;
+                    renderBrailleButtons();
+                }
+            } else if (signal === 'Right') {
+                if (currentIndex < totalCards - 1) {
+                    currentIndex++;
+                    renderBrailleButtons();
+                }
+            } else if (signal === 'Enter') {
+                const [char, { dots, positions }] = brailleEntries[currentIndex];
+                const positionsText = formatPositions(positions);
+                playVoiceMessage(`${positionsText}, ${char.toUpperCase()}`);
+                sendLEDCommand(positions); // Enter 시 LED 제어 추가
+            } else if (signal === 'Ctrl+Backspace') {
+                window.location.href = '/learning/en'; // Redirect to the specific route
+            }
+        }
+
+        // Poll Braille control signals
+        function pollBrailleSignals() {
+            fetch('/index/get_braille_signals')  // Backend endpoint to get signals
+                .then(response => response.json())
+                .then(data => {
+                    const controlSignals = data.control_signals;
+                    controlSignals.forEach(signal => handleBrailleSignal(signal));
+                })
+                .catch(error => console.error('Error fetching Braille signals:', error));
+        }
+
+        // 페이지 로드 시 버튼 렌더링 및 음성 출력
+        document.addEventListener('DOMContentLoaded', () => {
+            playWelcomeMessage(); // 페이지 로드 시 음성 안내 실행
+            renderBrailleButtons();
+        });
+
+        // Poll Braille signals periodically (every 300ms)
+        setInterval(pollBrailleSignals, 300);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,310 @@
+<!-- blueprints/learning/templates/learning/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Learning Braille</title>
+    <!-- Google Fonts for Improved Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* Reset and Base Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+            text-align: center;
+            transition: transform 0.3s ease;
+            position: relative; /* For positioning indicators */
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        h1 {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 2.5em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+
+        .flash.success {
+            color: #27ae60;
+            background-color: #e8f8f5;
+            border-left: 5px solid #27ae60;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .flash.error {
+            color: #c0392b;
+            background-color: #fdecea;
+            border-left: 5px solid #c0392b;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        .flash.info {
+            color: #2980b9;
+            background-color: #eaf2f8;
+            border-left: 5px solid #2980b9;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .word-display, .input-display {
+            margin: 30px 0;
+        }
+
+        .word-display strong, .input-display strong {
+            font-size: 1.2em;
+            color: #34495e;
+        }
+
+        .braille-characters {
+            font-family: 'SimBraille', sans-serif; /* Ensure this font is available */
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+            min-width: 250px;
+            min-height: 60px;
+            position: relative;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
+        }
+
+        .braille-characters:hover {
+            background-color: #d0d7de;
+        }
+
+        .braille-characters span.cursor {
+            background-color: #f1c40f; /* Bright color for better visibility */
+            border-radius: 5px;
+            padding: 2px 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .braille-characters span.cursor:hover {
+            background-color: #f39c12;
+        }
+
+        .instruction {
+            font-size: 1em;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        audio {
+            display: none; /* Hide audio elements */
+        }
+
+        /* Visual Indicators (Optional) */
+        .audio-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 1.5em;
+            display: none;
+            animation: fadeInOut 2s forwards;
+        }
+
+        @keyframes fadeInOut {
+            0% { opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .braille-characters {
+                min-width: 200px;
+                min-height: 50px;
+                padding: 15px;
+            }
+
+            .flash.success, .flash.error, .flash.info {
+                padding: 8px 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Learning Braille</h1>
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <ul class="flashes">
+              {% for category, message in messages %}
+                <li class="flash {{ category }}">{{ message }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        {% endwith %}
+        
+        <!-- Display the Target Word -->
+        {% if target_word %}
+            <div class="word-display">
+                <strong>Target Word:</strong> {{ target_word }}
+            </div>
+        {% endif %}
+        
+        <!-- Display User's Input -->
+        <div class="input-display">
+            <strong>Your Input:</strong>
+            <div id="user-input" class="braille-characters"></div>
+        </div>
+        
+        <!-- Instruction -->
+        <p class="instruction">Translate the braille input to match the target word.</p>
+
+        <!-- Feedback Audio (e.g., "Delete", "Left", "Right") -->
+        {% if feedback_audio_url %}
+            <audio id="feedback-audio" src="{{ feedback_audio_url }}" autoplay></audio>
+        {% endif %}
+
+        <!-- Word Audio -->
+        {% if audio_url %}
+            <audio id="word-audio" src="{{ audio_url }}" autoplay></audio>
+        {% endif %}
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            let formSubmitting = false;
+            let lastDisplayBuffer = [];
+            let lastCursorPosition = 0;
+
+            function fetchInputBuffer() {
+                if (formSubmitting) return;
+                fetch('/learning/get_current_input_buffer')
+                    .then(response => response.json())
+                    .then(data => {
+                        const inputBuffer = data.input_buffer;
+                        const cursorPosition = data.cursor_position;
+                        const controlSignal = data.control_signal;
+                        console.log('Received input buffer:', inputBuffer);
+                        console.log('Received cursor position:', cursorPosition);
+                        console.log('Received control signal:', controlSignal);
+
+                        // Check if inputBuffer or cursorPosition is different from lastDisplayBuffer and lastCursorPosition
+                        if (JSON.stringify(inputBuffer) !== JSON.stringify(lastDisplayBuffer) || cursorPosition !== lastCursorPosition) {
+                            lastDisplayBuffer = inputBuffer.slice(); // Create a copy
+                            lastCursorPosition = cursorPosition;
+                            updateUserInputDisplay(lastDisplayBuffer, lastCursorPosition);
+                        }
+
+                        // Handle control signals
+                        if (['Enter', 'Back', 'Left', 'Right', 'Ctrl+Enter', 'Ctrl+Backspace', 'Up', 'Down', 
+                        'Space', 'Ctrl+Up', 'Ctrl+Down', 'Ctrl+Left', 'Ctrl+Right', 'Ctrl+Space', 'Ctrl'].includes(controlSignal)) {
+                            console.log(`Control signal detected: ${controlSignal}`);
+                            formSubmitting = true;
+                            // Submit a hidden form to trigger the POST method
+                            var form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = '/learning/en/2';
+                            document.body.appendChild(form);
+                            form.submit();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching input buffer:', error);
+                    });
+            }
+
+            function updateUserInputDisplay(inputBuffer, cursorPosition) {
+                console.log(`Updating display. Buffer: ${inputBuffer}, Cursor: ${cursorPosition}`);
+                const userInputDisplay = document.getElementById('user-input');
+                if (userInputDisplay) {
+                    userInputDisplay.innerHTML = ''; // Clear current display
+                    inputBuffer.forEach((binaryStr, index) => {
+                        let brailleValue = 0;
+                        for (let i = 0; i < 6; i++) {
+                            const bit = binaryStr[5 - i];  // Reverse order of bits
+                            if (bit === '1') {
+                                brailleValue |= (1 << i);
+                            }
+                        }
+                        const brailleChar = String.fromCharCode(0x2800 + brailleValue);
+                        const span = document.createElement('span');
+                        span.textContent = brailleChar;
+                        if (index === cursorPosition) {
+                            span.classList.add('cursor');
+                            console.log(`Cursor is at position: ${index}`);
+                        }
+                        userInputDisplay.appendChild(span);
+                    });
+                    console.log('User input display updated.');
+                }
+            }
+
+            // Periodically fetch the input buffer
+            setInterval(fetchInputBuffer, 500); // Fetch every 0.5 second
+
+            // Function to handle audio autoplay
+            function handleAudioAutoplay(audioElement) {
+                if (audioElement) {
+                    var playPromise = audioElement.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(_ => {
+                            console.log(`${audioElement.id} playback started.`);
+                        })
+                        .catch(error => {
+                            console.error(`Autoplay was prevented for ${audioElement.id}:`, error);
+                        });
+                    }
+                }
+            }
+            // Handle Word Audio Autoplay
+            var wordAudio = document.getElementById('word-audio');
+            handleAudioAutoplay(wordAudio);
+
+            // Handle Feedback Audio Autoplay
+            var feedbackAudio = document.getElementById('feedback-audio');
+            handleAudioAutoplay(feedbackAudio);
+        });
+    </script>
+</body>
+</html>

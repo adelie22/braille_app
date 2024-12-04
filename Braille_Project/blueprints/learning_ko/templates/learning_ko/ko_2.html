@@ -1,0 +1,311 @@
+<!-- blueprints/learning_ko/templates/index_ko.html -->
+
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>점자 받아쓰기</title>
+    <!-- 개선된 타이포그래피를 위한 Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;600&display=swap"
+        rel="stylesheet">
+    <style>
+        /* 초기화 및 기본 스타일 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background-color: #ffffff;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .container:hover {
+            transform: translateY(-5px);
+        }
+
+        h1 {
+            font-family: 'Open Sans', sans-serif;
+            font-size: 2.5em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            letter-spacing: 1px;
+        }
+
+        .flash.success {
+            color: #27ae60;
+            background-color: #e8f8f5;
+            border-left: 5px solid #27ae60;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .flash.error {
+            color: #c0392b;
+            background-color: #fdecea;
+            border-left: 5px solid #c0392b;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        .flash.info {
+            color: #2980b9;
+            background-color: #eaf2f8;
+            border-left: 5px solid #2980b9;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .word-display,
+        .input-display {
+            margin: 30px 0;
+        }
+
+        .word-display strong,
+        .input-display strong {
+            font-size: 1.2em;
+            color: #34495e;
+        }
+
+        .braille-characters {
+            font-family: 'SimBraille', sans-serif;
+            /* 해당 폰트가 사용 가능해야 합니다 */
+            background-color: #ecf0f1;
+            padding: 20px;
+            border-radius: 10px;
+            display: inline-block;
+            min-width: 250px;
+            min-height: 60px;
+            position: relative;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s ease;
+        }
+
+        .braille-characters:hover {
+            background-color: #d0d7de;
+        }
+
+        .braille-characters span.cursor {
+            background-color: #f1c40f;
+            /* 시인성을 위한 밝은 색상 */
+            border-radius: 5px;
+            padding: 2px 5px;
+            transition: background-color 0.3s ease;
+        }
+
+        .braille-characters span.cursor:hover {
+            background-color: #f39c12;
+        }
+
+        .instruction {
+            font-size: 1em;
+            color: #7f8c8d;
+            margin-bottom: 30px;
+        }
+
+        audio {
+            margin-top: 30px;
+            outline: none;
+        }
+
+        /* 반응형 디자인 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 30px 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            .braille-characters {
+                min-width: 200px;
+                min-height: 50px;
+                padding: 15px;
+            }
+
+            .flash.success,
+            .flash.error,
+            .flash.info {
+                padding: 8px 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>점자 받아쓰기</h1>
+
+        <!-- 플래시 메시지 -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <ul class="flashes">
+            {% for category, message in messages %}
+            <li class="flash {{ category }}">{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+
+        <!-- 목표 단어 표시 -->
+        {% if target_word %}
+        <div class="word-display">
+            <strong>목표 단어:</strong> {{ target_word }}
+        </div>
+        {% endif %}
+
+        <!-- 사용자 입력 표시 -->
+        <div class="input-display">
+            <strong>사용자 입력:</strong>
+            <div id="user-input" class="braille-characters"></div>
+        </div>
+
+        <!-- 안내 문구 -->
+        <p class="instruction">점자 입력을 통해 목표 단어를 맞춰보세요.</p>
+
+        <!-- 피드백 오디오 (예: "정답입니다!" 또는 "틀렸습니다...") -->
+        <audio id="feedback-audio" {% if feedback_audio_url %}src="{{ feedback_audio_url }}" {% endif %}
+            autoplay></audio>
+
+        <!-- 단어 오디오 -->
+        {% if audio_url %}
+        <audio id="word-audio" src="{{ audio_url }}" autoplay></audio>
+        {% endif %}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let formSubmitting = false;
+            let lastDisplayBuffer = [];
+            let lastCursorPosition = 0;
+
+            function fetchInputBuffer() {
+                if (formSubmitting) return;
+                fetch('/learning_ko/get_current_input_buffer')
+                    .then(response => response.json())
+                    .then(data => {
+                        const inputBuffer = data.input_buffer;
+                        const cursorPosition = data.cursor_position;
+                        const controlSignal = data.control_signal;
+                        console.log('Received input buffer:', inputBuffer);
+                        console.log('Received cursor position:', cursorPosition);
+                        console.log('Received control signal:', controlSignal);
+
+                        // 이전 상태와 비교하여 업데이트가 필요한지 확인
+                        if (JSON.stringify(inputBuffer) !== JSON.stringify(lastDisplayBuffer) || cursorPosition !== lastCursorPosition) {
+                            lastDisplayBuffer = inputBuffer.slice(); // 복사본 생성
+                            lastCursorPosition = cursorPosition;
+                            updateUserInputDisplay(lastDisplayBuffer, lastCursorPosition);
+                        }
+
+                        // 제어 신호 처리
+                        if (['Enter', 'Back', 'Ctrl+Enter', 'Ctrl+Backspace', 'Left', 'Right', 'Up', 'Down',
+                            'Ctrl', 'Space', 'Ctrl + Up', 'Ctrl + Down', 'Ctrl + Space'].includes(controlSignal)) {
+                            console.log(`Control signal detected: ${controlSignal}`);
+                            formSubmitting = true;
+                            // POST 메서드를 트리거하기 위해 숨겨진 폼 제출
+                            var form = document.createElement('form');
+                            form.method = 'POST';
+                            form.action = '/learning_ko/ko/2';
+                            document.body.appendChild(form);
+                            form.submit();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching input buffer:', error);
+                    });
+            }
+
+            function updateUserInputDisplay(inputBuffer, cursorPosition) {
+                console.log(`Updating display. Buffer: ${inputBuffer}, Cursor: ${cursorPosition}`);
+                const userInputDisplay = document.getElementById('user-input');
+                if (userInputDisplay) {
+                    userInputDisplay.innerHTML = ''; // 현재 표시 초기화
+                    inputBuffer.forEach((binaryStr, index) => {
+                        let brailleValue = 0;
+                        for (let i = 0; i < 6; i++) {
+                            const bit = binaryStr[5 - i];  // 비트 순서 반전
+                            if (bit === '1') {
+                                brailleValue |= (1 << i);
+                            }
+                        }
+                        const brailleChar = String.fromCharCode(0x2800 + brailleValue);
+                        const span = document.createElement('span');
+                        span.textContent = brailleChar;
+                        if (index === cursorPosition) {
+                            span.classList.add('cursor');
+                            console.log(`Cursor is at position: ${index}`);
+                        }
+                        userInputDisplay.appendChild(span);
+                    });
+                    console.log('User input display updated.');
+                }
+            }
+
+            // 주기적으로 입력 버퍼 가져오기
+            setInterval(fetchInputBuffer, 500); // 0.5초마다 가져오기
+
+            // 오디오 자동 재생 처리 함수
+            function handleAudioAutoplay(audioElement) {
+                if (audioElement) {
+                    var playPromise = audioElement.play();
+                    if (playPromise !== undefined) {
+                        playPromise.then(_ => {
+                            console.log(`${audioElement.id} 재생 시작.`);
+                        })
+                            .catch(error => {
+                                console.error(`${audioElement.id}의 자동 재생이 차단되었습니다:`, error);
+                            });
+                    }
+                }
+            }
+            // 단어 오디오 자동 재생 처리
+            var wordAudio = document.getElementById('word-audio');
+            handleAudioAutoplay(wordAudio);
+
+            // 피드백 오디오 자동 재생 처리
+            var feedbackAudio = document.getElementById('feedback-audio');
+            handleAudioAutoplay(feedbackAudio);
+        });
+    </script>
+</body>
+
+</html>
