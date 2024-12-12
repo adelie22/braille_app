@@ -47,9 +47,14 @@ def get_current_input_buffer_word_chain():
             logging.info("Ctrl + Enter received. Preparing to restart the game.")
         elif control_signal == 'Ctrl':
             keyboard.read_input()
+        elif control_signal == 'Up':
+            keyboard.read_input()
+        elif control_signal == 'Down':
+            keyboard.read_input()
         elif control_signal == 'Enter':
             # Do NOT consume the 'Enter' signal here
             logging.info("'Enter' signal detected. Will be handled in submit_braille_word.")
+        
         else:
             logging.warning(f"Unhandled Control Signal: {control_signal}")
 

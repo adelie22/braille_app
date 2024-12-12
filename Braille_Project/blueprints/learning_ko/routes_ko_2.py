@@ -405,15 +405,18 @@ def handle_enter_signal():
             target_word = target_word_entry.word.lower()
 
             if entered_word == target_word:
-                # Correct input logic
-                flash("Correct!", "success")
+                # Correct input logic                
                 logging.info("User entered the correct word.")
-                # Generate feedback audio for correct input
-                feedback_audio_url = generate_feedback_audio('정답입니다. 다음 단어는', 'feedback_correct.mp3')
-                if feedback_audio_url:
-                    session['feedback_audio_url'] = feedback_audio_url
+                
                 # Select the next word
                 new_word_entry = KoGrade1.query.order_by(db.func.rand()).first()
+                
+                feedback_message = f"정답입니다. 다음 단어는 {new_word_entry.word}"
+                # Generate feedback audio for correct input
+                feedback_audio_url = generate_feedback_audio(feedback_message, 'feedback_correct.mp3')
+                if feedback_audio_url:
+                    session['feedback_audio_url'] = feedback_audio_url
+                    
                 if new_word_entry:
                     session['current_word_id'] = new_word_entry.id
                     session['word_audio_played'] = False  # Reset flag for new word

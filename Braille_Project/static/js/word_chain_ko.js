@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     } else {
                         document.getElementById('result-ko').innerText = data.message;
-                        speakMessage(`You entered: ${translatedWord}`);
+                        speakMessage(`입력 단어: ${translatedWord}`);
                         lastExchange.user = translatedWord;
                         updateExchangeDisplay();
                         totalExchanges += 1;
@@ -286,7 +286,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             const computerWord = data.computer_word;
                             lastExchange.computer = computerWord;
                             updateExchangeDisplay();
-                            speakMessage(`Next word: ${computerWord}`);
+                            speakMessage(`다음 단어: ${computerWord}`);
                             totalExchanges += 1;
                             updateAttemptsDisplay();
                         }
